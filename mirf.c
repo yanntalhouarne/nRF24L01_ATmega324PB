@@ -23,7 +23,7 @@ void mirf_init()
 	mirf_CE_lo;
 	mirf_CSN_hi;
 
-	// Initialize external interrupt 0 (PD0)
+	// Initialize external interrupt 0 (PD2)
 	EIMSK &= ~(1 << INT0);
 	EICRA |= (1 << ISC01); // the falling edge of INT0 generates asynchronously an interrupt request.
 	EIMSK |= (1 << INT0);  // enable interrupts on INT0
@@ -71,7 +71,7 @@ extern char mirf_data_ready()
 	char status;
 	// Read MiRF status
 	mirf_CSN_lo;       // Pull down chip select
-	status = spi_exchange_char(NOP); // Read status register
+	status = spi1_exchange_char(NOP); // Read status register
 	mirf_CSN_hi;                     // Pull up chip select
 	return status & (1 << RX_DR);
 }
@@ -135,7 +135,7 @@ void mirf_send(char *value, char len)
 	PTX = 1;    // Set to transmitter mode
 	//print("in mirf_send, PTX set to ;");
 	//println_int(PTX);
-	print_char(NL);
+	print_char_0(NL);
 	TX_POWERUP; // Power up
 
 	mirf_CSN_lo;                 // Pull down chip select

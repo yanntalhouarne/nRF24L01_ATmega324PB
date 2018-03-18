@@ -8,13 +8,13 @@
 #include "print.h"
 #include "usart.h"
 
-void print_char(char character)
+void print_char_0(char character)
 {
 	usart0_send_char(character);
 }
 
 
-void print(char char_array[]) // prints to usart
+void print_0(char char_array[]) // prints to usart
 {
 	for (int i=0; i<200 ; i++)
 	{
@@ -74,7 +74,7 @@ void print_crln_1(char char_array[]) // prints to usart
 	usart1_send_char(0x0A); // NL
 }
 
-void print_int(int number)
+void print_int_0(int number)
 {
 	int temp = number;
 	int num_digit = 0;
@@ -94,7 +94,7 @@ void print_int(int number)
 	}
 }
 
-void println_int(int number)
+void println_int_0(int number)
 {
 	int temp = number;
 	int num_digit = 0;
@@ -115,7 +115,7 @@ void println_int(int number)
 	usart0_send_char(0x0A); // NL
 }
 
-void print_long(long number)
+void print_long_0(long number)
 {
 	long temp = number;
 	int num_digit = 0;
@@ -137,7 +137,7 @@ void print_long(long number)
 	}
 }
 
-void println_long(long number)
+void println_long_0(long number)
 {
 	long temp = number;
 	int num_digit = 0;
@@ -160,7 +160,7 @@ void println_long(long number)
 	usart0_send_char(0x0A); // NL
 }
 
-void println_decimal(double number, unsigned char decimals) 
+void println_decimal_0(double number, unsigned char decimals) 
 {
 	char str[4];
 	dtostrf(number, 1, (decimals+3), str);
