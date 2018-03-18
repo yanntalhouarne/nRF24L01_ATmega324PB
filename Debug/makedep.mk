@@ -4,6 +4,8 @@
 
 main.c
 
+mirf.c
+
 print.c
 
 spi.c

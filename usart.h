@@ -9,7 +9,11 @@
 
 #ifndef USART_H_
 #define USART_H_
+
 #define MAX_STRING_SIZE 50
+
+#define BR_9600 51 // baud rate for USART (51 for 9600 at 8MHz)
+
 
 // globals for RX interrupts string
 unsigned char rcv_string[MAX_STRING_SIZE];
