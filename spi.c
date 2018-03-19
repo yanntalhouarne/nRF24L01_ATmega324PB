@@ -6,7 +6,7 @@ void spi0_master_initialize()
 	DDRB |= (1 << SCK_0);   // SCK_0 is output
 	DDRB |= (1 << SS_0);   // SS_0 is output
 	
-	SPCR0 = (1 << SPE) | (1 << MSTR) | (1 << SPR1) | (1 << CPHA); // Enable SPI, Master, set clock rate fck/16, SPI_MODE1, MSB first
+	SPCR0 = (1 << SPE) | (1 << MSTR) | (1 << SPR0) | (0 << CPHA); // Enable SPI, Master, set clock rate fck/16, SPI_MODE1, MSB first
 }
 void spi0_slave_initialize()
 {

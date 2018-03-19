@@ -45,7 +45,7 @@ void mirf_config()
 	// Start receiver
 	PTX = 0;    // Start in receiving mode
 	RX_POWERUP; // Power up in receiving mode
-	mirf_CE_hi; // Listening for pakets
+	mirf_CE_hi; // Listening for packets
 }
 
 void mirf_set_RADDR(char *adr)
@@ -65,10 +65,10 @@ void mirf_set_TADDR(char *adr)
 extern char mirf_data_ready()
 // Checks if data is available for reading
 {
+	//println_0("in mirf_data_ready();");
 	if (PTX)
 		return 0;
-   // println("is data ready;")
-	char status;
+	uint8_t status;
 	// Read MiRF status
 	mirf_CSN_lo;       // Pull down chip select
 	status = spi1_exchange_char(NOP); // Read status register
@@ -80,7 +80,7 @@ extern void mirf_get_data(char *data)
 // Reads mirf_PAYLOAD bytes into data array
 {
 	mirf_CSN_lo;                                  // Pull down chip select
-	spi1_exchange_char(R_RX_PAYLOAD);              // Send cmd to read rx payload
+	spi1_send_char(R_RX_PAYLOAD);              // Send cmd to read rx payload
 	spi1_exchange_bytes(data, data, mirf_PAYLOAD); // Read payload
 	mirf_CSN_hi;                                  // Pull up chip select
 	mirf_config_register(STATUS, (1 << RX_DR));   // Reset status register
@@ -91,22 +91,19 @@ void mirf_config_register(char reg, char value)
 {
 	mirf_CSN_lo;
 	spi1_send_char(W_REGISTER | (REGISTER_MASK & reg));
-	mirf_CSN_hi;
-	_delay_us(50);
+	//mirf_CSN_hi;
+	//_delay_us(50);
 	
-	mirf_CSN_lo;
+	//mirf_CSN_lo;
 	spi1_send_char(value);
-	mirf_CSN_hi;
-	
-	
-		
+	mirf_CSN_hi;	
 }
 
 void mirf_read_register(char reg, char *value, char len)
 // Reads an array of bytes from the given start position in the MiRF registers.
 {
 	mirf_CSN_lo;
-	spi1_exchange_char(R_REGISTER | (REGISTER_MASK & reg));
+	spi1_send_char(R_REGISTER | (REGISTER_MASK & reg));
 	spi1_exchange_bytes(value, value, len);
 	mirf_CSN_hi;
 }
@@ -115,7 +112,7 @@ void mirf_write_register(char reg, char *value, char len)
 // Writes an array of bytes into the the MiRF registers.
 {
 	mirf_CSN_lo;
-	spi1_exchange_char(W_REGISTER | (REGISTER_MASK & reg));
+	spi1_send_char(W_REGISTER | (REGISTER_MASK & reg));
 	spi1_send_bytes(value, len);
 	mirf_CSN_hi;
 }
@@ -124,6 +121,7 @@ void mirf_send(char *value, char len)
 // Sends a data package to the default address. Be sure to send the correct
 // amount of bytes as configured as payload on the receiver.
 {
+	println_0("In mirf_send();");
 
 	while (PTX)
 	{
@@ -135,7 +133,7 @@ void mirf_send(char *value, char len)
 	PTX = 1;    // Set to transmitter mode
 	//print("in mirf_send, PTX set to ;");
 	//println_int(PTX);
-	print_char_0(NL);
+	//print_char_0(NL);
 	TX_POWERUP; // Power up
 
 	mirf_CSN_lo;                 // Pull down chip select
