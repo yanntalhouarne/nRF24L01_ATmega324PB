@@ -76,6 +76,9 @@ void print_crln_1(char char_array[]) // prints to usart
 
 void print_int_0(int number)
 {
+	if (number == 0)
+	print_char_0('0');
+	
 	int temp = number;
 	int num_digit = 0;
 	

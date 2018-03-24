@@ -13,6 +13,9 @@
 #define MAX_STRING_SIZE 50
 
 #define BR_9600 51 // baud rate for USART (51 for 9600 at 8MHz)
+#define BR_3800 12
+#define BR_250000 1
+#define BR_500000 0
 
 
 // globals for RX interrupts string

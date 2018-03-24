@@ -22,6 +22,7 @@
 #define mirf_CE_hi PORTD |= (1 << CE); // PD6 is Chip Select
 #define mirf_CE_lo PORTD &= ~(1 << CE);
 
+
 // Public standard functions
 extern void mirf_init();
 extern void mirf_config();
@@ -29,6 +30,7 @@ extern void mirf_send(char *value, char len);
 extern void mirf_set_RADDR(char *adr);
 extern void mirf_set_TADDR(char *adr);
 extern char mirf_data_ready();
+extern char mirf_data_sent();
 extern void mirf_get_data(char *data);
 
 // Public extended functions

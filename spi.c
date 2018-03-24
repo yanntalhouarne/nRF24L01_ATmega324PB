@@ -21,7 +21,7 @@ void spi1_master_initialize()
 	DDRD |= (1 << SCK_1);   // SCK_1 is output  
 	DDRD |= (1 << SS_1);   // SS_1 is output 
 												 
-	SPCR1 = (1 << SPE) | (1 << MSTR) | (1 << SPR1) | (1 << CPHA); // Enable SPI, Master, set clock rate fck/16, SPI_MODE1, MSB first
+	SPCR1 = (1 << SPE) | (1 << MSTR) | (1 << SPR1); // Enable SPI, Master, set clock rate fck/16, SPI_MODE0, MSB first
 }
 void spi1_slave_initialize()
 {

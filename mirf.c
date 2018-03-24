@@ -76,6 +76,18 @@ extern char mirf_data_ready()
 	return status & (1 << RX_DR);
 }
 
+extern char mirf_data_sent()
+// Checks if data is available for reading
+{
+	int8_t status;
+	// Read MiRF status
+	mirf_CSN_lo;       // Pull down chip select
+	status = spi1_exchange_char(NOP); // Read status register
+	mirf_CSN_hi;                     // Pull up chip select
+	println_0("checking TX;");
+	return status & (1 << TX_DS);
+}
+
 extern void mirf_get_data(char *data)
 // Reads mirf_PAYLOAD bytes into data array
 {
@@ -91,12 +103,10 @@ void mirf_config_register(char reg, char value)
 {
 	mirf_CSN_lo;
 	spi1_send_char(W_REGISTER | (REGISTER_MASK & reg));
-	//mirf_CSN_hi;
-	//_delay_us(50);
-	
-	//mirf_CSN_lo;
+	_delay_us(25);
 	spi1_send_char(value);
 	mirf_CSN_hi;	
+	_delay_us(25);
 }
 
 void mirf_read_register(char reg, char *value, char len)
@@ -106,6 +116,7 @@ void mirf_read_register(char reg, char *value, char len)
 	spi1_send_char(R_REGISTER | (REGISTER_MASK & reg));
 	spi1_exchange_bytes(value, value, len);
 	mirf_CSN_hi;
+	_delay_us(25);
 }
 
 void mirf_write_register(char reg, char *value, char len)
@@ -115,17 +126,17 @@ void mirf_write_register(char reg, char *value, char len)
 	spi1_send_char(W_REGISTER | (REGISTER_MASK & reg));
 	spi1_send_bytes(value, len);
 	mirf_CSN_hi;
+	_delay_us(25);
+	
 }
 
 void mirf_send(char *value, char len)
 // Sends a data package to the default address. Be sure to send the correct
 // amount of bytes as configured as payload on the receiver.
 {
-	println_0("In mirf_send();");
-
 	while (PTX)
 	{
-				
+		println_0("while(PTX)")	;	
 	} // Wait until last packet is send
 
 	mirf_CE_lo;
@@ -139,10 +150,13 @@ void mirf_send(char *value, char len)
 	mirf_CSN_lo;                 // Pull down chip select
 	spi1_send_char(FLUSH_TX); // Write cmd to flush tx fifo
 	mirf_CSN_hi;                 // Pull up chip select
+	_delay_us(25);
 	
 	mirf_CSN_lo;                     // Pull down chip select
 	spi1_send_char(W_TX_PAYLOAD); // Write cmd to write payload
+	_delay_us(25);
 	spi1_send_bytes(value, len);      // Write payload
+	_delay_us(25);
 	mirf_CSN_hi;                     // Pull up chip select
 
 	mirf_CE_hi; // Start transmission
@@ -152,20 +166,19 @@ ISR(INT0_vect) // Interrupt handler
 {
 	char status;
 	// If still in transmitting mode then finish transmission
-	if (PTX)
-	{
-
+	//if (PTX)
+	//{
 		// Read MiRF status
 		mirf_CSN_lo;                     // Pull down chip select
 		status = spi1_exchange_char(NOP); // Read status register
 		mirf_CSN_hi;                     // Pull up chip select
-
+		
 		mirf_CE_lo; // Deactivate transreceiver
 		RX_POWERUP; // Power up in receiving mode
 		mirf_CE_hi; // Listening for pakets
 		PTX = 0;    // Set to receiving mode
 
 		// Reset status register for further interaction
-		mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
-	}
+		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
+	//}
 }

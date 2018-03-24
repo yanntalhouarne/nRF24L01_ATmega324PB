@@ -21,6 +21,7 @@ void println_0(char char_array[]);
 void println_0(char char_array[]);
 void print_crln_0(char char_array[]);
 void print_crln_1(char char_array[]);
+void print_int_0(int number);
 void println_int_0(int number);
 void println_long_0(long number);
 void print_long_0(long number);
