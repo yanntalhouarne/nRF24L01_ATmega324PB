@@ -5,7 +5,7 @@
  * Author : Yann
  */ 
 #define F_CPU 8000000
-#define LOOP_DELAY 100
+#define LOOP_DELAY 10
 
 #include <avr/io.h>
 #include <util/delay.h>
