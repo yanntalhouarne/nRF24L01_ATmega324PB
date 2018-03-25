@@ -166,19 +166,20 @@ ISR(INT0_vect) // Interrupt handler
 {
 	char status;
 	// If still in transmitting mode then finish transmission
-	//if (PTX)
-	//{
+	if (PTX)
+	{
 	// Read MiRF status
 	mirf_CSN_lo;                     // Pull down chip select
 	status = spi1_exchange_char(NOP); // Read status register
+	print_0("STATUS: ;");
+	println_int_0(status);
 	mirf_CSN_hi;                     // Pull up chip select
-	
-	mirf_CE_lo; // Deactivate transreceiver
-	RX_POWERUP; // Power up in receiving mode
-	mirf_CE_hi; // Listening for pakets
-	PTX = 0;    // Set to receiving mode
-
+	_delay_us(25);
+	mirf_CE_lo;                             // Deactivate transreceiver
+	RX_POWERUP;                             // Power up in receiving mode
+	mirf_CE_hi;                             // Listening for pakets
+	PTX = 0;                                // Set to receiving mode
 	// Reset status register for further interaction
 	//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
-	//}
+	}
 }
