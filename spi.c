@@ -18,15 +18,15 @@ void spi0_slave_initialize()
 void spi1_master_initialize()
 {
 	DDRE |= (1 << MOSI_1);  // MOSI_1 is output
-	DDRD |= (1 << SCK_1);   // SCK_1 is output  
-	DDRD |= (1 << SS_1);   // SS_1 is output 
-												 
+	DDRD |= (1 << SCK_1);   // SCK_1 is output
+	DDRD |= (1 << SS_1);   // SS_1 is output
+	
 	SPCR1 = (1 << SPE) | (1 << MSTR) | (1 << SPR1); // Enable SPI, Master, set clock rate fck/16, SPI_MODE0, MSB first
 }
 void spi1_slave_initialize()
 {
-	DDRE |= (1 << MISO_1);	// MSIO_1 is output 
-										
+	DDRE |= (1 << MISO_1);	// MSIO_1 is output
+	
 	SPCR1 = (1 << SPE); // Enable SPI, Slave
 }
 
@@ -168,4 +168,3 @@ void spi1_send_int(unsigned int mosi) // not tested
 	while (!(SPSR1 & (1 << SPIF)));
 	SPDR1 = (char)mosi; // send LSB of MOSI
 }
-

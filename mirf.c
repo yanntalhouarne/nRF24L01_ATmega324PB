@@ -65,9 +65,9 @@ void mirf_set_TADDR(char *adr)
 extern char mirf_data_ready()
 // Checks if data is available for reading
 {
-	//println_0("in mirf_data_ready();");
+	//println_0(ki"in mirf_data_ready();");
 	if (PTX)
-		return 0;
+	return 0;
 	uint8_t status;
 	// Read MiRF status
 	mirf_CSN_lo;       // Pull down chip select
@@ -84,7 +84,7 @@ extern char mirf_data_sent()
 	mirf_CSN_lo;       // Pull down chip select
 	status = spi1_exchange_char(NOP); // Read status register
 	mirf_CSN_hi;                     // Pull up chip select
-	println_0("checking TX;");
+	//println_0("checking TX;");
 	return status & (1 << TX_DS);
 }
 
@@ -105,7 +105,7 @@ void mirf_config_register(char reg, char value)
 	spi1_send_char(W_REGISTER | (REGISTER_MASK & reg));
 	_delay_us(25);
 	spi1_send_char(value);
-	mirf_CSN_hi;	
+	mirf_CSN_hi;
 	_delay_us(25);
 }
 
@@ -136,7 +136,7 @@ void mirf_send(char *value, char len)
 {
 	while (PTX)
 	{
-		println_0("while(PTX)")	;	
+		println_0("while(PTX)")	;
 	} // Wait until last packet is send
 
 	mirf_CE_lo;
@@ -168,17 +168,17 @@ ISR(INT0_vect) // Interrupt handler
 	// If still in transmitting mode then finish transmission
 	//if (PTX)
 	//{
-		// Read MiRF status
-		mirf_CSN_lo;                     // Pull down chip select
-		status = spi1_exchange_char(NOP); // Read status register
-		mirf_CSN_hi;                     // Pull up chip select
-		
-		mirf_CE_lo; // Deactivate transreceiver
-		RX_POWERUP; // Power up in receiving mode
-		mirf_CE_hi; // Listening for pakets
-		PTX = 0;    // Set to receiving mode
+	// Read MiRF status
+	mirf_CSN_lo;                     // Pull down chip select
+	status = spi1_exchange_char(NOP); // Read status register
+	mirf_CSN_hi;                     // Pull up chip select
+	
+	mirf_CE_lo; // Deactivate transreceiver
+	RX_POWERUP; // Power up in receiving mode
+	mirf_CE_hi; // Listening for pakets
+	PTX = 0;    // Set to receiving mode
 
-		// Reset status register for further interaction
-		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
+	// Reset status register for further interaction
+	//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
 	//}
 }
