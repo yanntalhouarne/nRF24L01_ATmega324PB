@@ -5,7 +5,7 @@
  * Author : Yann
  */ 
 #define F_CPU 8000000
-#define LOOP_DELAY 10
+#define LOOP_DELAY 100
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -24,12 +24,14 @@
 
 #define BUFFER_SIZE 2
 
-char buffer[mirf_PAYLOAD] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-char rx_buffer[mirf_PAYLOAD] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+char buffer[mirf_PAYLOAD] = {0,0};
+char rx_buffer[mirf_PAYLOAD] = {0,0};
 
 void setup_gpios();
 
 uint8_t status = 0;
+uint8_t tx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
+uint8_t rx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 
 int main(void)
 {
@@ -60,13 +62,20 @@ int main(void)
 	
 	sei(); // enable global interrupts
 	
+	//mirf_config_register(EN_AA, (0<<0)); // disable auto ACK for pipe 0
+	//mirf_config_register(EN_AA, (0<<1));
+
 	mirf_config();
+	
+	mirf_set_TADDR(tx_address);
+	mirf_set_RADDR(rx_address);
 
 	println_0("nRF24L01 initialized...;");
 	_delay_ms(10);
 
     while (1) 
     {
+		print_char_0(',');
 		buffer[0]++;
 		//buffer[1] = 2;
 		TOGGLE_LED;
@@ -75,15 +84,15 @@ int main(void)
 		mirf_send(buffer, mirf_PAYLOAD);
 		_delay_us(10);
 		while (!mirf_data_sent());
-		mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
+		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
 
 		//println_0("Waiting for echo...;");
-		_delay_us(10);
-		while(!mirf_data_ready()); // wait for the receiver to echo the data sent
+	//	_delay_us(10);
+	//	while(!mirf_data_ready()); // wait for the receiver to echo the data sent
 
 		//mirf_config_register(STATUS, (1 << RX_DR) | (1 << MAX_RT)); // Reset status register
 		//LED_ON; // turn on LED if echo has been received
-		mirf_get_data(rx_buffer); // read the data from the nRF24L01
+		//mirf_get_data(rx_buffer); // read the data from the nRF24L01
 		//TOGGLE_LED;	// toggle LED while waiting
 		
 		//print_0("Response received: ;"); // send data to uart_0 (terminal)

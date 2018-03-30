@@ -38,12 +38,33 @@ void mirf_config()
 {
 	// Set RF channel
 	mirf_config_register(RF_CH, mirf_CH);
-	// Set length of incoming payload
-	mirf_config_register(RX_PW_P0, mirf_PAYLOAD);
 	
+	// Set length of incoming payload 
+	mirf_config_register(RX_PW_P0, 0x00); // Auto-ACK pipe ...
+	mirf_config_register(RX_PW_P1, mirf_PAYLOAD); // Data payload pipe
+	mirf_config_register(RX_PW_P2, 0x00);
+	mirf_config_register(RX_PW_P3, 0x00);
+	mirf_config_register(RX_PW_P4, 0x00);
+	mirf_config_register(RX_PW_P5, 0x00);
+   
+    // 250 kbps, TX gain: 0dbm
+   	mirf_config_register(RF_SETUP, (1<<RF_DR_LOW) | (0x03)<<RF_PWR);
+	   
+    // Auto Acknowledgment
+    mirf_config_register(EN_AA,(1<<ENAA_P0)|(1<<ENAA_P1)|(0<<ENAA_P2)|(0<<ENAA_P3)|(0<<ENAA_P4)|(0<<ENAA_P5));
+	
+	// Enable RX addresses
+	 mirf_config_register(EN_RXADDR,(1<<ERX_P0)|(1<<ERX_P1)|(0<<ERX_P2)|(0<<ERX_P3)|(0<<ERX_P4)|(0<<ERX_P5));
+	
+	// Auto retransmit delay: 1000 us and Up to 15 retransmit trials
+	mirf_config_register(SETUP_RETR,(0x04<<ARD)|(0x0F<<ARC));	
 	
 	// Start receiver
-	PTX = 0;    // Start in receiving mode
+	PTX = 0;    
+	mirf_config_register(STATUS,(1<<RX_DR)|(1<<TX_DS)|(1<<MAX_RT)); // clear flags
+	mirf_CSN_lo
+	spi1_send_char(FLUSH_TX);
+	mirf_CSN_hi
 	RX_POWERUP; // Power up in receiving mode
 	mirf_CE_hi; // Listening for packets
 }
@@ -52,13 +73,15 @@ void mirf_set_RADDR(char *adr)
 // Sets the receiving address
 {
 	mirf_CE_lo;
-	mirf_write_register(RX_ADDR_P0, adr, 5);
+	mirf_write_register(RX_ADDR_P1, adr, 5);
 	mirf_CE_hi;
 }
 
 void mirf_set_TADDR(char *adr)
 // Sets the transmitting address
 {
+	/* RX_ADDR_P0 must be set to the sending addr for auto ack to work. */
+	mirf_write_register(RX_ADDR_P0, adr, 5);
 	mirf_write_register(TX_ADDR, adr, 5);
 }
 
@@ -79,12 +102,14 @@ extern char mirf_data_ready()
 extern char mirf_data_sent()
 // Checks if data is available for reading
 {
+	
 	int8_t status;
 	// Read MiRF status
 	mirf_CSN_lo;       // Pull down chip select
 	status = spi1_exchange_char(NOP); // Read status register
 	mirf_CSN_hi;                     // Pull up chip select
 	//println_0("checking TX;");
+	println_int_0(status);
 	return status & (1 << TX_DS);
 }
 
@@ -152,6 +177,8 @@ void mirf_send(char *value, char len)
 	mirf_CSN_hi;                 // Pull up chip select
 	_delay_us(25);
 	
+	mirf_config_register(STATUS,(1<<RX_DR)|(1<<TX_DS)|(1<<MAX_RT)); 
+	
 	mirf_CSN_lo;                     // Pull down chip select
 	spi1_send_char(W_TX_PAYLOAD); // Write cmd to write payload
 	_delay_us(25);
@@ -164,22 +191,24 @@ void mirf_send(char *value, char len)
 
 ISR(INT0_vect) // Interrupt handler
 {
-	char status;
+	//char status;
 	// If still in transmitting mode then finish transmission
+	
 	if (PTX)
 	{
-	// Read MiRF status
-	mirf_CSN_lo;                     // Pull down chip select
-	status = spi1_exchange_char(NOP); // Read status register
-	print_0("STATUS: ;");
-	println_int_0(status);
-	mirf_CSN_hi;                     // Pull up chip select
-	_delay_us(25);
-	mirf_CE_lo;                             // Deactivate transreceiver
-	RX_POWERUP;                             // Power up in receiving mode
-	mirf_CE_hi;                             // Listening for pakets
-	PTX = 0;                                // Set to receiving mode
-	// Reset status register for further interaction
-	//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
+		// Read MiRF status
+		//mirf_CSN_lo;                     // Pull down chip select
+		//status = spi1_exchange_char(NOP); // Read status register
+		//print_0("STATUS: ;");
+		//println_int_0(status);
+		//mirf_CSN_hi;                     // Pull up chip select
+		//_delay_us(25);
+		mirf_CE_lo;                             // Deactivate transreceiver
+		RX_POWERUP;                             // Power up in receiving mode
+		mirf_CE_hi;                             // Listening for packets
+		PTX = 0;                                // Set to receiving mode
+		// Reset status register for further interaction
+		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
 	}
+	
 }
