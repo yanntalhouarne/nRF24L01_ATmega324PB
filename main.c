@@ -5,7 +5,7 @@
  * Author : Yann
  */ 
 #define F_CPU 8000000
-#define LOOP_DELAY 100
+#define LOOP_DELAY 30
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -15,9 +15,9 @@
 #include "spi.h"
 #include "mirf.h"
 
-#define LED_DDR DDRB
-#define LED_PORT PORTB 
-#define LED_PIN 0
+#define LED_DDR DDRE
+#define LED_PORT PORTE
+#define LED_PIN 4
 #define LED_ON LED_PORT |= (1<<LED_PIN);
 #define LED_OFF LED_PORT &= ~(1<<LED_PIN);
 #define TOGGLE_LED LED_PORT ^= (1<<LED_PIN);
@@ -75,15 +75,17 @@ int main(void)
 
     while (1) 
     {
-		print_char_0(',');
+		TOGGLE_LED;
+		//print_char_0(',');
 		buffer[0]++;
 		//buffer[1] = 2;
 		TOGGLE_LED;
 		//println_0("Sending data...;");
 		//_delay_ms(1);
 		mirf_send(buffer, mirf_PAYLOAD);
-		_delay_us(10);
+		//_delay_ms(30);
 		while (!mirf_data_sent());
+		TOGGLE_LED;
 		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
 
 		//println_0("Waiting for echo...;");

@@ -39,6 +39,8 @@ void mirf_config()
 	// Set RF channel
 	mirf_config_register(RF_CH, mirf_CH);
 	
+	mirf_config_register(SETUP_RETR, 0b11111111);
+	
 	// Set length of incoming payload 
 	mirf_config_register(RX_PW_P0, 0x00); // Auto-ACK pipe ...
 	mirf_config_register(RX_PW_P1, mirf_PAYLOAD); // Data payload pipe
@@ -108,8 +110,7 @@ extern char mirf_data_sent()
 	mirf_CSN_lo;       // Pull down chip select
 	status = spi1_exchange_char(NOP); // Read status register
 	mirf_CSN_hi;                     // Pull up chip select
-	//println_0("checking TX;");
-	println_int_0(status);
+	//println_int_0(status);
 	return status & (1 << TX_DS);
 }
 
