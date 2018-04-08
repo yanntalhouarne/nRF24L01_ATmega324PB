@@ -15,6 +15,7 @@
 #include "spi.h"
 #include "mirf.h"
 
+// LED
 #define LED_DDR DDRE
 #define LED_PORT PORTE
 #define LED_PIN 4
@@ -22,16 +23,42 @@
 #define LED_OFF LED_PORT &= ~(1<<LED_PIN);
 #define TOGGLE_LED LED_PORT ^= (1<<LED_PIN);
 
+// IN1
+#define IN1 1
+#define IN1_DDR DDRB
+#define IN1_PORT PORTB
+#define IN1_PIN 1
+
+// IN2
+#define IN2 2
+#define IN2_DDR DDRB
+#define IN2_PORT PORTB
+#define IN2_PIN 2
+
+// ENB 
+#define ENA_PORT PORTD
+#define ENA_DDR DDRD
+#define ENA 5
+
+
+
 #define BUFFER_SIZE 2
 
 char buffer[mirf_PAYLOAD] = {0,0};
-char rx_buffer[mirf_PAYLOAD] = {0,0};
+	
+int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
+int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 
 void setup_gpios();
+void setup_gpios();
+void setup_pwm();
+void set_duty_cycle(int duty_cycle);
+void move_motor_forward();
+void move_motor_backward();
+void motor_off();
 
 uint8_t status = 0;
-uint8_t tx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
-uint8_t rx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
+
 
 int main(void)
 {
@@ -39,6 +66,7 @@ int main(void)
 	setup_usart0(BR_500000); // for FTDI debugging (terminal)
 	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
 	mirf_init();
+	setup_pwm();
 	_delay_ms(50);	
 	
 	TOGGLE_LED;
@@ -77,15 +105,15 @@ int main(void)
     {
 		TOGGLE_LED;
 		//print_char_0(',');
-		buffer[0]++;
+		//buffer[0]++;
 		//buffer[1] = 2;
-		TOGGLE_LED;
 		//println_0("Sending data...;");
 		//_delay_ms(1);
-		mirf_send(buffer, mirf_PAYLOAD);
+		//mirf_send(buffer, mirf_PAYLOAD);
+		while(!mirf_data_ready());
+		mirf_get_data(buffer);
 		//_delay_ms(30);
-		while (!mirf_data_sent());
-		TOGGLE_LED;
+		//while (!mirf_data_sent());
 		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
 
 		//println_0("Waiting for echo...;");
@@ -106,7 +134,28 @@ int main(void)
 		
 		//while(1);
 		
-		_delay_ms(LOOP_DELAY);
+		//println_int_0(buffer[0]);
+		
+		if ((buffer[0] < -100) || (buffer[0] > 100))
+		{
+			motor_off();
+		}
+		else if ( (buffer[0]<6)) // deadband
+		{
+			motor_off();
+		}
+		else if (buffer[0]>6)
+		{
+			set_duty_cycle(buffer[0]);
+			move_motor_forward();
+		}
+		else if (buffer[0]<0)
+		{
+			set_duty_cycle(buffer[0]);
+			move_motor_backward();
+		}
+		
+		//_delay_ms(LOOP_DELAY);
 			
     }
 }
@@ -114,5 +163,38 @@ int main(void)
 void setup_gpios()
 {
 	LED_DDR |= (1<<LED_PIN); // set LED gpio as output 
+	IN1_DDR |= (1<<IN1);
+	IN2_DDR |= (1<<IN2);
+	ENA_DDR |= (1<<ENA);
+	
 }
 	
+void setup_pwm()
+{
+	TCCR1A |= (1 << WGM10) | (1 << COM1A1)| (1 << COM1A0); // fast PWM
+	TCCR1B |= (1 << WGM12) | (1 << CS10);                                 // no prescaler with f_osc (so 62.5KHz PWM)
+}
+
+void set_duty_cycle(int duty_cycle)
+{
+	duty_cycle = 2.56 * duty_cycle - 1;
+	OCR1A = (char)((0x00FF) & duty_cycle);
+}
+
+void move_motor_forward()
+{
+	IN1_PORT |= (1<<IN1);
+	IN2_PORT &= ~(1<<IN2);
+}
+
+void move_motor_backward()
+{
+	IN1_PORT &= ~(1<<IN1);
+	IN2_PORT |= (1<<IN2);
+}
+
+void motor_off()
+{
+	IN1_PORT |= (1<<IN1);
+	IN2_PORT |= (1<<IN2);
+}

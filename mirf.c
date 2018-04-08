@@ -39,7 +39,7 @@ void mirf_config()
 	// Set RF channel
 	mirf_config_register(RF_CH, mirf_CH);
 	
-	mirf_config_register(SETUP_RETR, 0b11111111);
+	//mirf_config_register(SETUP_RETR, 0b11111111);
 	
 	// Set length of incoming payload 
 	mirf_config_register(RX_PW_P0, 0x00); // Auto-ACK pipe ...
