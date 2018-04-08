@@ -10,11 +10,14 @@
 
 // Mirf settings
 #define mirf_CH 2
-#define mirf_PAYLOAD 16
+#define mirf_PAYLOAD 2
 #define mirf_CONFIG ((1 << MASK_RX_DR) | (1 << EN_CRC) | (0 << CRCO))
 
 // Pin definitions for chip select and chip enabled of the MiRF module
 #define CE 4
+
+// data rate 
+#define mirf_DATA_RATE 0 // 0 for 1Mbps, 1 for 2Mbps
 
 // Definitions for selecting and enabling MiRF module
 #define mirf_CSN_hi PORTD |= (1 << SS_1);  // PD4 is Chip Enable

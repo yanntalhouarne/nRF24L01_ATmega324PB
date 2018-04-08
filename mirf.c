@@ -38,6 +38,8 @@ void mirf_config()
 {
 	// Set RF channel
 	mirf_config_register(RF_CH, mirf_CH);
+	// set data rate
+	mirf_config_register(RF_DR, mirf_DATA_RATE);
 	// Set length of incoming payload
 	mirf_config_register(RX_PW_P0, mirf_PAYLOAD);
 	
