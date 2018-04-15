@@ -5,7 +5,7 @@
  * Author : Yann
  */ 
 #define F_CPU 8000000
-#define LOOP_DELAY 30
+#define LOOP_DELAY 1000
 
 #include <avr/io.h>
 #include <util/delay.h>
@@ -40,22 +40,28 @@
 #define ENA_DDR DDRD
 #define ENA 5
 
+// servo PWM PIN
+#define SERVO_PWM_DDR DDRB
+#define SERVO_PWM 3  // PB3
+
 
 
 #define BUFFER_SIZE 2
 
-char buffer[mirf_PAYLOAD] = {0,0};
+int8_t buffer[mirf_PAYLOAD] = {0,0};
 	
 int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 
 void setup_gpios();
-void setup_gpios();
-void setup_pwm();
-void set_duty_cycle(int duty_cycle);
+void setup_TMR1_pwm();
+void setup_TMR0_pwm();
+void set_TMR1_duty_cycle(int duty_cycle);
+void set_TMR3_duty_cycle(int duty_cycle);
 void move_motor_forward();
 void move_motor_backward();
 void motor_off();
+void move_servo(float angle);
 
 uint8_t status = 0;
 
@@ -66,7 +72,9 @@ int main(void)
 	setup_usart0(BR_500000); // for FTDI debugging (terminal)
 	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
 	mirf_init();
-	setup_pwm();
+	setup_TMR1_pwm();
+	setup_TMR0_pwm();
+			
 	_delay_ms(50);	
 	
 	TOGGLE_LED;
@@ -89,9 +97,6 @@ int main(void)
 	_delay_ms(1000);
 	
 	sei(); // enable global interrupts
-	
-	//mirf_config_register(EN_AA, (0<<0)); // disable auto ACK for pipe 0
-	//mirf_config_register(EN_AA, (0<<1));
 
 	mirf_config();
 	
@@ -104,38 +109,12 @@ int main(void)
     while (1) 
     {
 		TOGGLE_LED;
-		//print_char_0(',');
-		//buffer[0]++;
-		//buffer[1] = 2;
-		//println_0("Sending data...;");
-		//_delay_ms(1);
-		//mirf_send(buffer, mirf_PAYLOAD);
+		
 		while(!mirf_data_ready());
+		
 		mirf_get_data(buffer);
-		//_delay_ms(30);
-		//while (!mirf_data_sent());
-		//mirf_config_register(STATUS, (1 << TX_DS) | (1 << MAX_RT)); // Reset status register
-
-		//println_0("Waiting for echo...;");
-	//	_delay_us(10);
-	//	while(!mirf_data_ready()); // wait for the receiver to echo the data sent
-
-		//mirf_config_register(STATUS, (1 << RX_DR) | (1 << MAX_RT)); // Reset status register
-		//LED_ON; // turn on LED if echo has been received
-		//mirf_get_data(rx_buffer); // read the data from the nRF24L01
-		//TOGGLE_LED;	// toggle LED while waiting
 		
-		//print_0("Response received: ;"); // send data to uart_0 (terminal)
-		//println_int_0(rx_buffer[0]);
-		//print_char_0(',');
-		//print_char_0(' ');
-		//print_int_0(buffer[1]);
-		//print_char_0(NL);
-		
-		//while(1);
-		
-		//println_int_0(buffer[0]);
-		
+		// set motor speed
 		if ((buffer[0] < -100) || (buffer[0] > 100))
 		{
 			motor_off();
@@ -146,17 +125,26 @@ int main(void)
 		}
 		else if (buffer[0]>6)
 		{
-			set_duty_cycle(buffer[0]);
+			set_TMR1_duty_cycle(buffer[0]);
 			move_motor_forward();
 		}
 		else if (buffer[0]<0)
 		{
-			set_duty_cycle(buffer[0]);
+			set_TMR1_duty_cycle(buffer[0]);
 			move_motor_backward();
 		}
 		
-		//_delay_ms(LOOP_DELAY);
-			
+		
+		print_0("buffer[0] = ;");
+		println_int_0(buffer[0]);
+		print_0("buffer[1] = ;");
+		println_int_0(buffer[1]);
+		print_char_0(' ');
+		print_char_0(NL);
+		//move_servo((float)buffer[1]);
+		
+
+	
     }
 }
 
@@ -166,16 +154,24 @@ void setup_gpios()
 	IN1_DDR |= (1<<IN1);
 	IN2_DDR |= (1<<IN2);
 	ENA_DDR |= (1<<ENA);
+	SERVO_PWM_DDR |= (1<<SERVO_PWM); 
 	
 }
 	
-void setup_pwm()
+void setup_TMR1_pwm()
 {
-	TCCR1A |= (1 << WGM10) | (1 << COM1A1)| (1 << COM1A0); // fast PWM
-	TCCR1B |= (1 << WGM12) | (1 << CS10);                                 // no prescaler with f_osc (so 62.5KHz PWM)
+	TCCR1A |= (1 << WGM10) | (1 << COM1A1) | (1 << COM1A0); // fast PWM
+	TCCR1B |= (1 << WGM12) | (1 << CS10); // no prescaler with f_osc (so 62.5KHz PWM)
 }
 
-void set_duty_cycle(int duty_cycle)
+void setup_TMR0_pwm()
+{
+	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM, Clear OC3A/OC3B on Compare Match, set OC3A/OC3B at BOTTOM (non-inverting mode)
+	TCCR0B |=  (1 << CS02); // prescaler of 256 with f_osc (so 62.5KHz PWM)
+	OCR0A = 47;
+}
+
+void set_TMR1_duty_cycle(int duty_cycle)
 {
 	duty_cycle = 2.56 * duty_cycle - 1;
 	OCR1A = (char)((0x00FF) & duty_cycle);
@@ -197,4 +193,10 @@ void motor_off()
 {
 	IN1_PORT |= (1<<IN1);
 	IN2_PORT |= (1<<IN2);
+}
+
+void move_servo(float angle)
+{ 
+	angle = 47 + angle*.355;
+	OCR0A = (uint8_t)angle;
 }
