@@ -99,6 +99,10 @@ void print_int_0(int number)
 
 void println_int_0(int number)
 {
+	if (number == 0)
+	{
+		print_char_0('0');
+	}
 	int temp = number;
 	int num_digit = 0;
 	

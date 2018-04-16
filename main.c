@@ -114,21 +114,12 @@ int main(void)
 		
 		mirf_get_data(buffer);
 		
-		// set motor speed
-		if ((buffer[0] < -100) || (buffer[0] > 100))
-		{
-			motor_off();
-		}
-		else if ( (buffer[0]<6)) // deadband
-		{
-			motor_off();
-		}
-		else if (buffer[0]>6)
+		if (buffer[0] > 0 )
 		{
 			set_TMR1_duty_cycle(buffer[0]);
 			move_motor_forward();
 		}
-		else if (buffer[0]<0)
+		else if (buffer[0] < 0)
 		{
 			set_TMR1_duty_cycle(buffer[0]);
 			move_motor_backward();
@@ -141,7 +132,7 @@ int main(void)
 		println_int_0(buffer[1]);
 		print_char_0(' ');
 		print_char_0(NL);
-		//move_servo((float)buffer[1]);
+		move_servo((float)buffer[1]);
 		
 
 	
@@ -174,6 +165,8 @@ void setup_TMR0_pwm()
 void set_TMR1_duty_cycle(int duty_cycle)
 {
 	duty_cycle = 2.56 * duty_cycle - 1;
+	if (duty_cycle > 255)
+	duty_cycle = 255; 
 	OCR1A = (char)((0x00FF) & duty_cycle);
 }
 
