@@ -46,12 +46,15 @@
 
 
 
-#define BUFFER_SIZE 2
+#define BUFFER_SIZE 3
 
-int8_t buffer[mirf_PAYLOAD] = {0,0};
+int8_t buffer[mirf_PAYLOAD] = {0,0,0};
 	
 int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
+	
+int16_t mtr_cmd = 0;
+int8_t srv_cmd = 0;
 
 void setup_gpios();
 void setup_TMR1_pwm();
@@ -114,28 +117,33 @@ int main(void)
 		
 		mirf_get_data(buffer);
 		
-		if (buffer[0] > 0 )
+		mtr_cmd = (0xFF00)&(buffer[0]<<8) | (0x00FF)&(buffer[1]);
+		srv_cmd = buffer[2];
+		
+		println_int_0(mtr_cmd);
+		println_int_0(srv_cmd);
+		
+		print_char_0(' ');
+		print_char_0(NL);
+		
+		if (mtr_cmd > 0 )
 		{
-			set_TMR1_duty_cycle(buffer[0]);
+			set_TMR1_duty_cycle(mtr_cmd);
 			move_motor_forward();
 		}
-		else if (buffer[0] < 0)
+		else if (mtr_cmd < 0)
 		{
-			set_TMR1_duty_cycle(buffer[0]);
+			set_TMR1_duty_cycle(abs(mtr_cmd));
 			move_motor_backward();
 		}
 		
+		move_servo((float)srv_cmd);
 		
 		print_0("buffer[0] = ;");
 		println_int_0(buffer[0]);
 		print_0("buffer[1] = ;");
 		println_int_0(buffer[1]);
-		print_char_0(' ');
-		print_char_0(NL);
-		move_servo((float)buffer[1]);
-		
 
-	
     }
 }
 
@@ -151,7 +159,7 @@ void setup_gpios()
 	
 void setup_TMR1_pwm()
 {
-	TCCR1A |= (1 << WGM10) | (1 << COM1A1) | (1 << COM1A0); // fast PWM
+	TCCR1A |= (1 << WGM10) | (1 << COM1A1); // fast PWM
 	TCCR1B |= (1 << WGM12) | (1 << CS10); // no prescaler with f_osc (so 62.5KHz PWM)
 }
 
@@ -164,7 +172,7 @@ void setup_TMR0_pwm()
 
 void set_TMR1_duty_cycle(int duty_cycle)
 {
-	duty_cycle = 2.56 * duty_cycle - 1;
+	duty_cycle = .256 * duty_cycle - 1;
 	if (duty_cycle > 255)
 	duty_cycle = 255; 
 	OCR1A = (char)((0x00FF) & duty_cycle);

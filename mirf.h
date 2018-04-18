@@ -10,7 +10,7 @@
 
 // Mirf settings
 #define mirf_CH 108
-#define mirf_PAYLOAD 2
+#define mirf_PAYLOAD 3
 #define mirf_CONFIG (1 << MASK_RX_DR) | (1 << MAX_RT) | (1 << EN_CRC) | (0 << CRCO)
 
 // Pin definitions for chip select and chip enabled of the MiRF module
