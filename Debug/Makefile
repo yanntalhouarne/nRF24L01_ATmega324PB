@@ -37,6 +37,7 @@ SUBDIRS :=
 
 # Add inputs and outputs from these tool invocations to the build variables 
 C_SRCS +=  \
+../adc.c \
 ../main.c \
 ../mirf.c \
 ../print.c \
@@ -51,6 +52,7 @@ ASM_SRCS +=
 
 
 OBJS +=  \
+adc.o \
 main.o \
 mirf.o \
 print.o \
@@ -58,6 +60,7 @@ spi.o \
 usart.o
 
 OBJS_AS_ARGS +=  \
+adc.o \
 main.o \
 mirf.o \
 print.o \
@@ -65,6 +68,7 @@ spi.o \
 usart.o
 
 C_DEPS +=  \
+adc.d \
 main.d \
 mirf.d \
 print.d \
@@ -72,6 +76,7 @@ spi.d \
 usart.d
 
 C_DEPS_AS_ARGS +=  \
+adc.d \
 main.d \
 mirf.d \
 print.d \
@@ -92,6 +97,8 @@ LINKER_SCRIPT_DEP+=
 
 
 # AVR32/GNU C Compiler
+
+
 
 
 
