@@ -32,6 +32,7 @@ extern void mirf_set_TADDR(char *adr);
 extern char mirf_data_ready();
 extern char mirf_data_sent();
 extern void mirf_get_data(char *data);
+void set_RX_MODE();
 
 // Public extended functions
 extern void mirf_config_register(char reg, char value);

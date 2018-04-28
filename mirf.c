@@ -12,6 +12,17 @@
 // Flag which denotes transmitting mode
 volatile char PTX;
 
+void set_RX_MODE()
+{
+	PTX = 0;
+	mirf_config_register(STATUS,(1<<RX_DR)|(1<<TX_DS)|(1<<MAX_RT)); // clear flags
+	mirf_CSN_lo
+	spi1_send_char(FLUSH_TX);
+	mirf_CSN_hi
+	RX_POWERUP; // Power up in receiving mode
+	mirf_CE_hi; // Listening for packets
+}
+
 void mirf_init()
 // Initializes pins ans interrupt to communicate with the MiRF module
 // Should be called in the early initializing phase at startup.
@@ -63,10 +74,12 @@ void mirf_config()
 	
 	// Start receiver
 	PTX = 0;    
-	mirf_config_register(STATUS,(1<<RX_DR)|(1<<TX_DS)|(1<<MAX_RT)); // clear flags
+	mirf_config_register(STATUS, (1<<RX_DR)|(1<<TX_DS)|(1<<MAX_RT)); // clear flags
+	
 	mirf_CSN_lo
 	spi1_send_char(FLUSH_TX);
 	mirf_CSN_hi
+	
 	RX_POWERUP; // Power up in receiving mode
 	mirf_CE_hi; // Listening for packets
 }
@@ -160,10 +173,10 @@ void mirf_send(char *value, char len)
 // Sends a data package to the default address. Be sure to send the correct
 // amount of bytes as configured as payload on the receiver.
 {
-	while (PTX)
-	{
-		println_0("while(PTX)")	;
-	} // Wait until last packet is send
+// 	while (PTX)
+// 	{
+// 		println_0("while(PTX)")	;
+// 	} // Wait until last packet is send
 
 	mirf_CE_lo;
 
@@ -182,9 +195,7 @@ void mirf_send(char *value, char len)
 	
 	mirf_CSN_lo;                     // Pull down chip select
 	spi1_send_char(W_TX_PAYLOAD); // Write cmd to write payload
-	_delay_us(25);
 	spi1_send_bytes(value, len);      // Write payload
-	_delay_us(25);
 	mirf_CSN_hi;                     // Pull up chip select
 
 	mirf_CE_hi; // Start transmission
@@ -195,12 +206,12 @@ ISR(INT0_vect) // Interrupt handler
 	//char status;
 	// If still in transmitting mode then finish transmission
 	
-	if (PTX)
-	{
-		mirf_CE_lo;                             // Deactivate transreceiver
-		RX_POWERUP;                             // Power up in receiving mode
-		mirf_CE_hi;                             // Listening for packets
-		PTX = 0;                                // Set to receiving mode
-	}
+// 	if (PTX)
+// 	{
+// 		mirf_CE_lo;                             // Deactivate transreceiver
+// 		RX_POWERUP;                             // Power up in receiving mode
+// 		mirf_CE_hi;                             // Listening for packets
+// 		PTX = 0;                                // Set to receiving mode
+// 	}
 	
 }
