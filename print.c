@@ -89,7 +89,7 @@ void print_int_0(int number)
 	}
 	if (number<0) num_digit++;
 	char char_array[MAX_STRING_SIZE];
-	itoa(number, char_array,10);
+	itoa(number, char_array, 10);
 
 	for (int i=0; i<num_digit ; i++)
 	{

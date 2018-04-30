@@ -6,11 +6,12 @@
  */ 
 
 #include <avr/io.h>
+#include <avr/interrupt.h>
 
 #ifndef USART_H_
 #define USART_H_
 
-#define MAX_STRING_SIZE 50
+#define MAX_STRING_SIZE 64
 
 #define BR_9600 51 // baud rate for USART (51 for 9600 at 8MHz)
 #define BR_3800 12
@@ -20,6 +21,7 @@
 
 // globals for RX interrupts string
 unsigned char rcv_string[MAX_STRING_SIZE];
+unsigned char receive_string_ready;
 
 void usart0_send_char(unsigned char data);
 unsigned char usart0_receive_char();
@@ -29,5 +31,8 @@ void usart1_send_char(unsigned char data);
 unsigned char usart1_receive_char();
 void usart1_receive_string();
 void setup_usart1(unsigned char BR);
+unsigned char check_RX();
+void clear_RX();
+
 
 #endif /* USART_H_ */

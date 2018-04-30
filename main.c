@@ -48,6 +48,8 @@
 /* nRF24L01 */
 #define BUFFER_SIZE 3
 #define GET_TEMP 'T'
+#define GET_LAT 'A'
+#define GET_LON 'O'
 
 
 
@@ -74,10 +76,11 @@ void flash_LED(uint8_t count, uint16_t ms);
 void delay_ms(uint16_t ms);
 void setup_TMR3();
 void reset_TMR3();
+void parse_GPMRC();
 
 
 
- //&&&&&&&&&&&& FUNCTION PROTOTYPES &&&&&&&&&&&&&&
+ //&&&&&&&&&&&&&&&&& GLOABLS &&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 int8_t buffer[mirf_PAYLOAD] = {0,0,0};
 int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
@@ -87,6 +90,19 @@ int8_t srv_cmd = 0;
 int8_t temperature = 23;
 uint8_t comm_lost = 0;
 uint8_t comm_lost_count = 0;
+volatile uint8_t k_RX = 0;
+volatile uint8_t HEADER = 0;
+volatile uint8_t GPRMC_SENTENCE = 0;
+volatile uint8_t lat_buf[8];
+volatile uint8_t lon_buf[8];
+uint8_t lat_deg = 0;
+uint8_t lat_min = 0;
+uint8_t lat_sec = 0;
+
+uint8_t lon_deg = 0;
+uint8_t lon_min = 0;
+uint8_t lon_sec = 0;
+
 
 
 
@@ -95,6 +111,7 @@ int main(void)
 {
 	setup_gpios(); 
 	setup_usart0(BR_500000); // for FTDI debugging (terminal)
+	setup_usart1(BR_9600); // for NEO6 GPS
 	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
 	mirf_init(); // initialize nRF24L01
 	mirf_config(); // configure nRF24L01
@@ -102,19 +119,20 @@ int main(void)
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
 	setup_TMR0_pwm(); // setup TMR0 PWM for servo
 	setup_TMR3();
-	
+		
 	flash_LED(10, 50); // flash LED 10 times at intervals of 50ms
-	
+	_delay_ms(1000);
 	sei(); // enable global interrupts
 	
-	mirf_set_TADDR(tx_address);
-	mirf_set_RADDR(rx_address);
+ 	mirf_set_TADDR(tx_address);
+ 	mirf_set_RADDR(rx_address);
 
 	println_0("nRF24L01 initialized...;");
 	_delay_ms(10);
 
     while (1) 
     {
+		
 		TOGGLE_LED;
 		
 		if (comm_lost_count > 50)
@@ -137,12 +155,31 @@ int main(void)
 		{
 			mirf_get_data(buffer); // get the data, put it in buffer
 		
-			if (buffer[0] == GET_TEMP) // if the command is temperature request
+			if (buffer[0] == GET_LAT) // if the command is temperature request
 			{
-				temperature++;
-				if (temperature > 30)
-					temperature = 15;
-				buffer[0] = temperature;
+				buffer[0] = lat_deg;
+				buffer[1] = lat_min;
+				buffer[2] = lat_sec;
+				reset_TMR3();
+				mirf_send(buffer, mirf_PAYLOAD);
+				while (!mirf_data_sent())
+				{
+					if (TCNT3 > 1500) // timeout of one second
+					{
+						comm_lost_count++;
+						comm_lost = 1;
+						break;
+					}
+				}
+				
+				set_RX_MODE();
+				
+			}
+			else if (buffer[0] == GET_LON) // if the command is temperature request
+			{
+				buffer[0] = lon_deg;
+				buffer[1] = lon_min;
+				buffer[2] = lon_sec;
 				reset_TMR3();
 				mirf_send(buffer, mirf_PAYLOAD);
 				while (!mirf_data_sent())
@@ -181,14 +218,17 @@ int main(void)
 		
 				move_servo((float)srv_cmd);
 			}
+					
+			print_int_0(mtr_cmd);
+			print_char_0(',');
+			println_int_0(srv_cmd);
 		}
 		else
 		comm_lost = 0;
-		
-		print_int_0(mtr_cmd);
-		print_char_0(',');
-		println_int_0(srv_cmd);
-		
+		cli();
+		parse_GPMRC();
+		sei();
+
 		_delay_ms(LOOP_DELAY);
 
     }
@@ -324,5 +364,88 @@ void delay_ms(uint16_t ms)
 	for (uint16_t i  = 0; i < ms; i++)
 	{
 		_delay_ms(1);
+	}
+}
+
+void parse_GPMRC()
+{
+	uint8_t temp_buf[2];
+	
+	temp_buf[0] = lat_buf[0];
+	temp_buf[1] = lat_buf[1];
+	lat_deg = atoi(temp_buf);
+	
+	temp_buf[0] = lat_buf[2];
+	temp_buf[1] = lat_buf[3];
+	lat_min = atoi(temp_buf);
+	
+	temp_buf[0] = lat_buf[5];
+	temp_buf[1] = lat_buf[6];
+	lat_sec = atoi(temp_buf);
+	
+	temp_buf[0] = lon_buf[0];
+	temp_buf[1] = lon_buf[1];
+	lon_deg = atoi(temp_buf);
+	
+	temp_buf[0] = lon_buf[2];
+	temp_buf[1] = lon_buf[3];
+	lon_min = atoi(temp_buf);
+	
+	temp_buf[0] = lon_buf[5];
+	temp_buf[1] = lon_buf[6];
+	lon_sec = atoi(temp_buf);
+	
+}
+
+// $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
+ISR(USART1_RX_vect)
+{
+	rcv_string[k_RX] = UDR1;
+	
+	if (rcv_string[k_RX] == '$')
+	HEADER = 1;
+	
+	if (HEADER)
+	{
+		if (rcv_string[k_RX] == ',')
+		{
+			if ( (rcv_string[3] == 'R') && (rcv_string[4] == 'M') && (rcv_string[5] == 'C'))
+			{
+				GPRMC_SENTENCE = 1;
+			}
+			else
+			k_RX = 0;
+			HEADER = 0;
+		}
+		else
+		k_RX++;
+	}
+	
+	if (GPRMC_SENTENCE)
+	{
+		if (rcv_string[k_RX] == '*')
+		{
+			int j = 0;
+			for (int i = 19; i < 26; i++)
+			{
+				lat_buf[j] = rcv_string[i];
+				j++;
+			}
+			lat_buf[j] = NL;
+			
+			
+			j = 0;
+			for (int i = 33; i <40; i++)
+			{
+				lon_buf[j] = rcv_string[i];
+				j++;
+			}
+			lon_buf[j] = NL;
+			
+			GPRMC_SENTENCE = 0;
+			k_RX = 0;
+		}
+		else
+		k_RX++;
 	}
 }

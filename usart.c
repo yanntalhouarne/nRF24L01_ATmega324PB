@@ -3,6 +3,9 @@
 #include "usart.h"
 #include "print.h"
 
+
+
+
 void usart0_send_char(unsigned char data)
 {
 	while (!(UCSR0A & (1 << UDRE)))
@@ -21,7 +24,7 @@ unsigned char usart0_receive_char()
 
 void setup_usart0(unsigned char BR)
 {
-	UCSR0B = (1 << TXEN) | (1 << RXEN) | (1 << RXCIE); // enable USART1
+	UCSR0B = (1 << TXEN) | (1 << RXEN); //
 	UCSR0C = (1 << UCSZ1) | (1 << UCSZ0);               // 8-bit character size
 	UBRR0L = BR;                                        // 51 for 9600 baud rate at 8Mhz
 }
@@ -33,7 +36,6 @@ void usart1_send_char(unsigned char data)
 	; // wait for data buffer to be empty
 	UDR1 = data;
 }
-
 
 unsigned char usart1_receive_char()
 {
@@ -64,9 +66,18 @@ void usart1_receive_string()
 
 void setup_usart1(unsigned char BR)
 {
-	UCSR1B = (1 << TXEN) | (1 << RXEN); // enable USART1
+	UCSR1B = (1 << TXEN) | (1 << RXEN) | (1<<RXCIE); // enable USART1
 	UCSR1C = (1 << UCSZ1) | (1 << UCSZ0);               // 8-bit character size
 	UBRR1L = BR;                                        // 51 for 9600 baud rate at 8Mhz
 }
 
+unsigned char check_RX()
+{
+	return receive_string_ready;
+}
+
+void clear_RX()
+{
+	receive_string_ready = 0;
+}
 

@@ -35,9 +35,9 @@ void mirf_init()
 	mirf_CSN_hi;
 
 	// Initialize external interrupt 0 (PD2)
-	EIMSK &= ~(1 << INT0);
-	EICRA |= (1 << ISC01); // the falling edge of INT0 generates asynchronously an interrupt request.
-	EIMSK |= (1 << INT0);  // enable interrupts on INT0
+// 	EIMSK &= ~(1 << INT0);
+// 	EICRA |= (1 << ISC01); // the falling edge of INT0 generates asynchronously an interrupt request.
+// 	EIMSK |= (1 << INT0);  // enable interrupts on INT0
 
 	// Initialize spi module
 	spi1_master_initialize();
@@ -201,17 +201,17 @@ void mirf_send(char *value, char len)
 	mirf_CE_hi; // Start transmission
 }
 
-ISR(INT0_vect) // Interrupt handler
-{
-	//char status;
-	// If still in transmitting mode then finish transmission
-	
-// 	if (PTX)
-// 	{
-// 		mirf_CE_lo;                             // Deactivate transreceiver
-// 		RX_POWERUP;                             // Power up in receiving mode
-// 		mirf_CE_hi;                             // Listening for packets
-// 		PTX = 0;                                // Set to receiving mode
-// 	}
-	
-}
+// ISR(INT0_vect) // Interrupt handler
+// {
+// 	//char status;
+// 	// If still in transmitting mode then finish transmission
+// 	
+// // 	if (PTX)
+// // 	{
+// // 		mirf_CE_lo;                             // Deactivate transreceiver
+// // 		RX_POWERUP;                             // Power up in receiving mode
+// // 		mirf_CE_hi;                             // Listening for packets
+// // 		PTX = 0;                                // Set to receiving mode
+// // 	}
+// 	
+// }
