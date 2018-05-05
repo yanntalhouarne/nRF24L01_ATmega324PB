@@ -28,7 +28,7 @@ void mirf_init()
 // Should be called in the early initializing phase at startup.
 {
 	// Define CSN and CE as Output and set them to default
-	DDRD |= (1 << CE); // PD4
+	DDRC |= (1 << CE); // PC7
 	DDRD |= (1 << SS_1); // PD6
 	
 	mirf_CE_lo;

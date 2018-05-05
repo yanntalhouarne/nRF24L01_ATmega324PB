@@ -1,5 +1,5 @@
  
-#define F_CPU 8000000
+#define F_CPU 16000000
 #define LOOP_DELAY 10
 
 #include <avr/io.h>
@@ -29,19 +29,23 @@
 #define LED_OFF LED_PORT &= ~(1<<LED_PIN);
 #define TOGGLE_LED LED_PORT ^= (1<<LED_PIN);
 /* IN1 */
-#define IN1 1
-#define IN1_DDR DDRB
-#define IN1_PORT PORTB
-#define IN1_PIN 1
+#define IN1 5
+#define IN1_DDR DDRD
+#define IN1_PORT PORTD
+#define IN1_PIN 5
 /* IN2 */
-#define IN2 2
-#define IN2_DDR DDRB
-#define IN2_PORT PORTB
-#define IN2_PIN 2
+#define IN2 4
+#define IN2_DDR DDRC
+#define IN2_PORT PORTC
+#define IN2_PIN 4
+/* ENA */
+#define EN1_PORT PORTB
+#define EN1_DDR DDRB
+#define EN1 3
 /* ENB */ 
-#define ENA_PORT PORTD
-#define ENA_DDR DDRD
-#define ENA 5
+#define EN2_PORT PORTB
+#define EN2_DDR DDRB
+#define EN2 2
 /* servo PWM PIN */
 #define SERVO_PWM_DDR DDRB
 #define SERVO_PWM 3  // PB3
@@ -57,7 +61,8 @@
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
  /* DC motor */
 void setup_TMR1_pwm();
-void set_TMR1_duty_cycle(int duty_cycle);
+void set_TMR1A_duty_cycle(int duty_cycle);
+void set_TMR4A_duty_cycle(int duty_cycle);
 void move_motor_forward();
 void move_motor_backward();
 void motor_off();
@@ -77,6 +82,7 @@ void delay_ms(uint16_t ms);
 void setup_TMR3();
 void reset_TMR3();
 void parse_GPMRC();
+void setup_TMR4A_pwm();
 
 
 
@@ -110,13 +116,14 @@ uint8_t lon_sec = 0;
 int main(void)
 {
 	setup_gpios(); 
-	setup_usart0(BR_500000); // for FTDI debugging (terminal)
+	setup_usart0(BR_1000000); // for FTDI debugging (terminal)
 	setup_usart1(BR_9600); // for NEO6 GPS
 	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
 	mirf_init(); // initialize nRF24L01
 	mirf_config(); // configure nRF24L01
 	setup_adc();
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
+	setup_TMR4A_pwm();
 	setup_TMR0_pwm(); // setup TMR0 PWM for servo
 	setup_TMR3();
 		
@@ -192,7 +199,17 @@ int main(void)
 					}
 				}
 				
+				
+				lat_deg = 0;
+				lat_min = 0;
+				lat_sec = 0;
+				lon_deg = 0;
+				lon_min = 0;
+				lon_sec = 0;
+				
+				
 				set_RX_MODE();
+
 				
 			}
 			else // otherwise, the command is for motor control
@@ -202,26 +219,27 @@ int main(void)
 
 				if (mtr_cmd > 0 ) // forward direction
 				{
-					set_TMR1_duty_cycle(mtr_cmd);
+					set_TMR1A_duty_cycle(mtr_cmd);
 					move_motor_forward();
 				}
 				else if (mtr_cmd < 0)  // backward direction
 				{
-					set_TMR1_duty_cycle(abs(mtr_cmd));
+					set_TMR4A_duty_cycle(abs(mtr_cmd));
 					move_motor_backward();
 				}
 				else if (abs(mtr_cmd) < 100) // deadband (mtr_cmd is from -1000 to 1000)
 				{
-					set_TMR1_duty_cycle(1);
+					set_TMR1A_duty_cycle(1);
+					set_TMR4A_duty_cycle(1);
 					motor_off();
 				}
 		
 				move_servo((float)srv_cmd);
 			}
 					
-			print_int_0(mtr_cmd);
-			print_char_0(',');
-			println_int_0(srv_cmd);
+// 			print_int_0(mtr_cmd);
+// 			print_char_0(',');
+// 			println_int_0(srv_cmd);
 		}
 		else
 		comm_lost = 0;
@@ -243,27 +261,39 @@ void setup_TMR1_pwm()
 	TCCR1A |= (1 << WGM10) | (1 << COM1A1); // fast PWM
 	TCCR1B |= (1 << WGM12) | (1 << CS10); // no prescaler with f_osc (so 62.5KHz PWM)
 }
-void set_TMR1_duty_cycle(int duty_cycle)
+void set_TMR1A_duty_cycle(int duty_cycle)
 {
 	duty_cycle = .256 * duty_cycle - 1;
 	if (duty_cycle > 255)
 	duty_cycle = 255;
 	OCR1A = (char)((0x00FF) & duty_cycle);
 }
+void setup_TMR4A_pwm()
+{
+	TCCR4A |= (1 << WGM40) | (1 << COM4A1); // fast PWM
+	TCCR4B |= (1 << WGM42) | (1 << CS40); // no prescaler with f_osc (so 62.5KHz PWM)
+}
+void set_TMR4A_duty_cycle(int duty_cycle)
+{
+	duty_cycle = .256 * duty_cycle - 1;
+	if (duty_cycle > 255)
+	duty_cycle = 255;
+	OCR4A = (char)((0x00FF) & duty_cycle);
+}
 void move_motor_forward()
 {
-	IN1_PORT |= (1<<IN1);
-	IN2_PORT &= ~(1<<IN2);
+ 	EN1_PORT |= (1<<EN1);
+ 	EN2_PORT &= ~(1<<EN2);
 }
 void move_motor_backward()
 {
-	IN1_PORT &= ~(1<<IN1);
-	IN2_PORT |= (1<<IN2);
+	EN1_PORT &= ~(1<<EN1);
+	EN2_PORT |= (1<<EN2);
 }
 void motor_off()
 {
-	IN1_PORT |= (1<<IN1);
-	IN2_PORT |= (1<<IN2);
+	EN1_PORT |= (1<<EN1);
+	EN2_PORT |= (1<<EN2);
 }
 void setup_TMR0_pwm()
 {
@@ -347,8 +377,9 @@ void setup_gpios()
 	LED_DDR |= (1<<LED_PIN); // set LED gpio as output
 	IN1_DDR |= (1<<IN1);
 	IN2_DDR |= (1<<IN2);
-	ENA_DDR |= (1<<ENA);
-	SERVO_PWM_DDR |= (1<<SERVO_PWM);
+	EN1_DDR |= (1<<EN1);
+	EN2_DDR |= (1<<EN2);
+	//SERVO_PWM_DDR |= (1<<SERVO_PWM);
 	
 }
 void flash_LED(uint8_t count, uint16_t ms)
