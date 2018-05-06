@@ -13,11 +13,11 @@
 
 #define MAX_STRING_SIZE 64
 
-#define BR_9600 103 
-#define BR_3800 25
-#define BR_250000 3
-#define BR_500000 1
-#define BR_1000000 0
+#define BR_9600 51
+// #define BR_3800 25
+// #define BR_250000 3
+// #define BR_500000 1
+// #define BR_1000000 0
 
 
 // globals for RX interrupts string

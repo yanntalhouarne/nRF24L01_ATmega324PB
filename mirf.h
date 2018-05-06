@@ -17,9 +17,9 @@
 #define CE 7
 
 // Definitions for selecting and enabling MiRF module
-#define mirf_CSN_hi PORTD |= (1 << SS_1);  // PD4 is Chip Enable
+#define mirf_CSN_hi PORTD |= (1 << SS_1);  // PD6 is Chip Enable
 #define mirf_CSN_lo PORTD &= ~(1 << SS_1);
-#define mirf_CE_hi PORTC |= (1 << CE); // PD6 is Chip Select
+#define mirf_CE_hi PORTC |= (1 << CE); // PC7 is Chip Select
 #define mirf_CE_lo PORTC &= ~(1 << CE);
 
 
