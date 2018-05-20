@@ -138,6 +138,8 @@ uint8_t lon_deg = 0;
 uint8_t lon_min = 0;
 uint8_t lon_sec = 0;
 
+uint8_t gps_string_ready = 0;
+
 
 
 
@@ -145,22 +147,23 @@ uint8_t lon_sec = 0;
 int main(void)
 {
 	setup_gpios(); 
-	setup_usart0(BR_9600); // for FTDI debugging (terminal)
-	//setup_usart1(BR_1000000); // for NEO6 GPS
-	//spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
-	//mirf_init(); // initialize nRF24L01
-	//mirf_config(); // configure nRF24L01
+	setup_usart0(BR_9600); // for NEO6 GPS
+	//setup_usart1(BR_1000000); // for FTDI debugging (terminal)
+	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
+	mirf_init(); // initialize nRF24L01
+	mirf_config(); // configure nRF24L01
 	setup_adc();
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
+	//setup_TMR4_pwm();
 	setup_TMR0_pwm(); // setup TMR0 PWM for servo
-	//setup_TMR3();
+	setup_TMR3(); // for communication timeout with controller
 		
 	flash_LED(10, 50); // flash LED 10 times at intervals of 50ms
 	_delay_ms(1000);
 	sei(); // enable global interrupts
 	
- 	//mirf_set_TADDR(tx_address);
- 	//mirf_set_RADDR(rx_address);
+ 	mirf_set_TADDR(tx_address);
+ 	mirf_set_RADDR(rx_address);
 
 	println_0("nRF24L01 initialized...;");
 	_delay_ms(10);
@@ -170,82 +173,79 @@ int main(void)
 		
 		TOGGLE_LED;
 		
-// 		if (comm_lost_count > 50)
-// 		{
-// 			comm_lost_count = 0;
-// 			mirf_config();
-// 		}
-// 		
-// 		reset_TMR3();
-// 		while(!mirf_data_ready())  // wait to receive command from controller
-// 		{
-// 			if (TCNT3 > 1500) // timeout of one second
-// 			{
-// 				comm_lost_count++;
-// 				comm_lost = 1;
-// 				break;
-// 			}
-// 		}
-// 		if (comm_lost == 0)
-// 		{
-// 			mirf_get_data(buffer); // get the data, put it in buffer
-// 		
-// 			if (buffer[0] == GET_LAT) // if the command is temperature request
-// 			{
-// 				buffer[0] = lat_deg;
-// 				buffer[1] = lat_min;
-// 				buffer[2] = lat_sec;
-// 				reset_TMR3();
-// 				mirf_send(buffer, mirf_PAYLOAD);
-// 				while (!mirf_data_sent())
-// 				{
-// 					if (TCNT3 > 1500) // timeout of one second
-// 					{
-// 						comm_lost_count++;
-// 						comm_lost = 1;
-// 						break;
-// 					}
-// 				}
-// 				
-// 				set_RX_MODE();
-// 				
-// 			}
-// 			else if (buffer[0] == GET_LON) // if the command is temperature request
-// 			{
-// 				buffer[0] = lon_deg;
-// 				buffer[1] = lon_min;
-// 				buffer[2] = lon_sec;
-// 				reset_TMR3();
-// 				mirf_send(buffer, mirf_PAYLOAD);
-// 				while (!mirf_data_sent())
-// 				{
-// 					if (TCNT3 > 1500) // timeout of one second
-// 					{
-// 						comm_lost_count++;
-// 						comm_lost = 1;
-// 						break;
-// 					}
-// 				}
-// 				
-// 				
-// 				lat_deg = 0;
-// 				lat_min = 0;
-// 				lat_sec = 0;
-// 				lon_deg = 0;
-// 				lon_min = 0;
-// 				lon_sec = 0;
-// 				
-// 				
-// 				set_RX_MODE();
-// 
-// 				
-// 			}
-			
-			//else // otherwise, the command is for motor control
-			//{
-			//	mtr_cmd = ((0xFF00)&(buffer[0]<<8)) | ((0x00FF)&(buffer[1])); // get the motor duty cycle
-			//	srv_cmd = buffer[2];
-
+		if (comm_lost_count > 50)
+		{
+			comm_lost_count = 0;
+			mirf_config();
+		}
+		
+		reset_TMR3();
+		while(!mirf_data_ready())  // wait to receive command from controller
+		{
+			if (TCNT3 > 1500) // timeout of one second
+			{
+				comm_lost_count++;
+				comm_lost = 1;
+				break;
+			}
+		}
+		if (comm_lost == 0) // if data has been received
+		{
+			mirf_get_data(buffer); // get the data, put it in buffer
+		
+			if (buffer[0] == GET_LAT) // if the command is lattitude request
+			{
+				buffer[0] = lat_deg;
+				buffer[1] = lat_min;
+				buffer[2] = lat_sec;
+				reset_TMR3();
+				mirf_send(buffer, mirf_PAYLOAD);
+				while (!mirf_data_sent())
+				{
+					if (TCNT3 > 1500) // timeout of one second
+					{
+						comm_lost_count++;
+						comm_lost = 1;
+						break;
+					}
+				}
+				
+				set_RX_MODE();
+				
+			}
+			else if (buffer[0] == GET_LON) // if the command is longitude request
+			{
+				buffer[0] = lon_deg;
+				buffer[1] = lon_min;
+				buffer[2] = lon_sec;
+				reset_TMR3();
+				mirf_send(buffer, mirf_PAYLOAD);
+				while (!mirf_data_sent())
+				{
+					if (TCNT3 > 1500) // timeout of one second
+					{
+						comm_lost_count++;
+						comm_lost = 1;
+						break;
+					}
+				}
+				
+				lat_deg = 0;
+				lat_min = 0;
+				lat_sec = 0;
+				lon_deg = 0;
+				lon_min = 0;
+				lon_sec = 0;		
+				
+				set_RX_MODE();
+				
+			}
+			else // otherwise, the command is for motor control (default command)
+			{
+				mtr_cmd = ((0xFF00)&(buffer[0]<<8)) | ((0x00FF)&(buffer[1])); // get the motor duty cycle
+				srv_cmd = buffer[2];
+						
+			/*
 			mtr_cmd = analog_read(1);
 			mtr_cmd = js_mtr_scaling(mtr_cmd);
 			mtr_cmd = 0.25*mtr_cmd + .75*old_mtr_cmd;
@@ -253,16 +253,16 @@ int main(void)
 			
 			srv_cmd = analog_read(2);
 			srv_cmd = js_srv_scaling(srv_cmd);
-			if ((srv_cmd < 5) && (srv_cmd > -5))
-			srv_cmd = 0;
-			else if (srv_cmd > 45)
-			srv_cmd = 45;
-			else if (srv_cmd < -45)
-			srv_cmd = -45;
+ 			if ((srv_cmd < 5) && (srv_cmd > -5))
+ 			srv_cmd = 0;
+			*/
+			
+			 if (srv_cmd > 20)
+				srv_cmd = 20;
+			else if (srv_cmd < -20)
+				srv_cmd = -20;
 			srv_cmd = 0.75*srv_cmd + .25*old_srv_cmd;
 			old_srv_cmd = srv_cmd;
-			println_int_0(srv_cmd);
-			
 			
 			if (abs(mtr_cmd) < 100) // deadband (mtr_cmd is from -1000 to 1000)
 			{
@@ -280,29 +280,33 @@ int main(void)
 					stop_TMR1B_pwm();
 					start_TMR1A_pwm();
 					set_TMR1A_duty_cycle(mtr_cmd);
-					
 				}
 				else if (mtr_cmd < 0)  // backward direction
 				{
 					stop_TMR1A_pwm();
 					start_TMR1B_pwm();
 					set_TMR1B_duty_cycle(abs(mtr_cmd));
-					
 				}
 			}
-
+			
 				move_servo((float)srv_cmd);
-			//}
+			
+			}
 					
-// 			print_int_0(mtr_cmd);
-// 			print_char_0(',');
-// 			println_int_0(srv_cmd);
-// 		}
-// 		else
-// 		comm_lost = 0;
-// 		cli();
-// 		parse_GPMRC();
-//		sei();
+//  			print_int_0(mtr_cmd);
+//  			print_char_0(',');
+//  			println_int_0(srv_cmd);
+ 		}
+ 		else
+ 			comm_lost = 0;
+			 
+		if (gps_string_ready)
+		{
+			gps_string_ready = 0;
+ 			cli();
+ 				parse_GPMRC(); // parse GPS string received by UASRT1 RX interrupt
+			sei();
+		}
 
 		_delay_ms(LOOP_DELAY);
 
@@ -365,8 +369,10 @@ void set_TMR2A_duty_cycle(int duty_cycle)
 }
 void setup_TMR4_pwm()
 {
-	TCCR4A |= (1 << WGM40) | (1 << COM4A1); // fast PWM
-	TCCR4B |= (1 << WGM42) | (1 << CS40); // no prescaler with f_osc (so 62.5KHz PWM)
+	TCCR4A |= (1 << WGM41) | (1 << COM4A1); // fast PWM, OCR4A
+	TCCR4B |= (1 << WGM42) | (1 << WGM43) | (1 << CS42); // prescaler of 256, Mode 14
+	ICR4 = 1249; // 20ms period
+	OCR4A = 624; // 50% duty cycle
 }
 void set_TMR4A_duty_cycle(int duty_cycle)
 {
@@ -398,13 +404,13 @@ void motor_on()
 void setup_TMR0_pwm()
 { 
 	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM, Clear OC3A/OC3B on Compare Match, set OC3A/OC3B at BOTTOM (non-inverting mode)
-	TCCR0B |=  (1 << CS02); // prescaler of 256
+	TCCR0B |=  (1 << CS02); // prescaler of 1024
 	move_servo(45);
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 }
 void move_servo(float angle)
 { 
-	angle = 47 + angle*.355;
+	angle = 46 + angle*.355;
 	OCR0A = (uint8_t)angle;
 }
 
@@ -570,7 +576,7 @@ int js_srv_scaling(float value) // scales the result to commands from -1000 to 1
 // $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
 ISR(USART0_RX_vect)
 {
-	rcv_string[k_RX] = UDR1;
+	rcv_string[k_RX] = UDR0;
 	
 	if (rcv_string[k_RX] == '$')
 	HEADER = 1;
@@ -614,6 +620,7 @@ ISR(USART0_RX_vect)
 			
 			GPRMC_SENTENCE = 0;
 			k_RX = 0;
+			gps_string_ready = 1;
 		}
 		else
 		k_RX++;
