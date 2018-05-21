@@ -24,7 +24,7 @@ unsigned char usart0_receive_char()
 
 void setup_usart0(unsigned char BR)
 {
-	UCSR0B = (1 << TXEN) | (1 << RXEN); //
+	UCSR0B = (1 << TXEN) | (1 << RXEN) | (1<<RXCIE); //
 	UCSR0C = (1 << UCSZ1) | (1 << UCSZ0);               // 8-bit character size
 	UBRR0L = BR;                                        // 51 for 9600 baud rate at 8Mhz
 }
@@ -66,7 +66,7 @@ void usart1_receive_string()
 
 void setup_usart1(unsigned char BR)
 {
-	UCSR1B = (1 << TXEN) | (1 << RXEN) | (1<<RXCIE); // enable USART1
+	UCSR1B = (1 << TXEN) | (1 << RXEN)| (1<<RXCIE); // enable USART1
 	UCSR1C = (1 << UCSZ1) | (1 << UCSZ0);               // 8-bit character size
 	UBRR1L = BR;                                        // 51 for 9600 baud rate at 8Mhz
 }
