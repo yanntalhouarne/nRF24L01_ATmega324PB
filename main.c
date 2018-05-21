@@ -2,15 +2,27 @@
 #define F_CPU 8000000
 #define LOOP_DELAY 20
 
+//#define DIRECT_JOYSTICK
+#define GPS_ON
+
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
 
-#include "print.h"
+
+
+#ifdef GPS_ON
 #include "usart.h"
+#include "print.h"
+#endif
+
+#ifndef DIRECT_JOYSTICK
 #include "spi.h"
 #include "mirf.h"
+#endif
+
 #include "adc.h"
+
 
  //&&&&&&&&&&&&&&&&& MACROS &&&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -70,27 +82,21 @@
  /* DC motor */
 void setup_TMR1_pwm();
 void stop_TMR1_pwm();
-void set_TMR1A_duty_cycle(int duty_cycle);
-void set_TMR1B_duty_cycle(int duty_cycle);
-void setup_TMR2_pwm();
-void set_TMR2A_duty_cycle(int duty_cycle);
-void setup_TMR4_pwm();
-void set_TMR4A_duty_cycle(int duty_cycle);
-void setup_TMR3();
-void reset_TMR3();
-void parse_GPMRC();
-void motor_off();
-void motor_on();
 void start_TMR1A_pwm();
 void start_TMR1B_pwm();
 void stop_TMR1A_pwm();
 void stop_TMR1B_pwm();
-
-
-void move_motor_forward();
-void move_motor_backward();
-int js_mtr_scaling(int value);
-int js_srv_scaling(float value);
+void motor_off();
+void motor_on();
+void set_TMR1A_duty_cycle(int duty_cycle);
+void set_TMR1B_duty_cycle(int duty_cycle);
+/* Communication time-out */
+void setup_TMR3();
+void reset_TMR3();
+#ifdef GPS_ON
+/* GPS parsing */
+void parse_GPMRC();
+#endif
 /* Servo */
 void setup_TMR0_pwm();
 void move_servo(float angle);
@@ -104,41 +110,47 @@ int16_t get_temp();
 void setup_gpios();
 void flash_LED(uint8_t count, uint16_t ms);
 void delay_ms(uint16_t ms);
-
-
-
-
-
-//void set_TMR1B_duty_cycle(int duty_cycle);
+#ifdef DIRECT_JOYSTICK
+	/* direct joystick input */
+	int js_mtr_scaling(int value);
+	int js_srv_scaling(float value);
+#endif
 
 
 
  //&&&&&&&&&&&&&&&&& GLOABLS &&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-int8_t buffer[mirf_PAYLOAD] = {0,0,0};
+ /* nRF24L01 variables */
+int8_t buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and trasnmit data
 int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
-int16_t mtr_cmd = 0;
+/* motor command variables */
+int16_t mtr_cmd = 0; 
 int16_t  old_mtr_cmd = 0;
+/* servo command variables */
 int16_t srv_cmd = 0;
 int8_t old_srv_cmd = 0;
+/* temperature */
 int8_t temperature = 23;
+/* communication status */
 uint8_t comm_lost = 0;
 uint8_t comm_lost_count = 0;
+#ifdef GPS_ON
+/* GPS variables */
 volatile uint8_t k_RX = 0;
 volatile uint8_t HEADER = 0;
 volatile uint8_t GPRMC_SENTENCE = 0;
 volatile uint8_t lat_buf[8];
 volatile uint8_t lon_buf[8];
+volatile uint8_t gps_string_ready = 0; // flag set when RX1 interrupt has received a full GPS sentence
 uint8_t lat_deg = 0;
 uint8_t lat_min = 0;
 uint8_t lat_sec = 0;
-
 uint8_t lon_deg = 0;
 uint8_t lon_min = 0;
 uint8_t lon_sec = 0;
+#endif
 
-uint8_t gps_string_ready = 0;
 
 
 
@@ -147,38 +159,48 @@ uint8_t gps_string_ready = 0;
 int main(void)
 {
 	setup_gpios(); 
+	#ifdef GPS_ON
+	/* USART setup */
 	setup_usart0(BR_9600); // for NEO6 GPS
-	//setup_usart1(BR_1000000); // for FTDI debugging (terminal)
+	#endif
+	
+	/* nRF24L01 setup */
+	#ifndef DIRECT_JOYSTICK
 	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
 	mirf_init(); // initialize nRF24L01
 	mirf_config(); // configure nRF24L01
+	mirf_set_TADDR(tx_address);
+	mirf_set_RADDR(rx_address);
+	#endif
+	
+	/* ADC for current and temperature sensor (and joystick i ndirect joystick mode) */
 	setup_adc();
+	
+	/* Timers setup */
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
-	//setup_TMR4_pwm();
 	setup_TMR0_pwm(); // setup TMR0 PWM for servo
 	setup_TMR3(); // for communication timeout with controller
-		
-	flash_LED(10, 50); // flash LED 10 times at intervals of 50ms
-	_delay_ms(1000);
+	
 	sei(); // enable global interrupts
 	
- 	mirf_set_TADDR(tx_address);
- 	mirf_set_RADDR(rx_address);
+	/* setup complete notification */
+	flash_LED(10, 50); // flash LED 10 times at intervals of 50ms
+	_delay_ms(1000);
+	
 
-	println_0("nRF24L01 initialized...;");
 	_delay_ms(10);
 
     while (1) 
     {
 		
 		TOGGLE_LED;
-		
+		#ifndef DIRECT_JOYSTICK
 		if (comm_lost_count > 50)
 		{
 			comm_lost_count = 0;
 			mirf_config();
 		}
-		
+
 		reset_TMR3();
 		while(!mirf_data_ready())  // wait to receive command from controller
 		{
@@ -189,11 +211,14 @@ int main(void)
 				break;
 			}
 		}
-		if (comm_lost == 0) // if data has been received
+		#endif
+		
+		if (comm_lost == 0) // if data has been received (will be 0 by default so in direct joystick mode, we will always enter this if statement
 		{
+			#ifndef DIRECT_JOYSTICK
 			mirf_get_data(buffer); // get the data, put it in buffer
 		
-			if (buffer[0] == GET_LAT) // if the command is lattitude request
+			if (buffer[0] == GET_LAT) // if the command is latitude request
 			{
 				buffer[0] = lat_deg;
 				buffer[1] = lat_min;
@@ -210,7 +235,7 @@ int main(void)
 					}
 				}
 				
-				set_RX_MODE();
+				set_RX_MODE(); // listen for new data
 				
 			}
 			else if (buffer[0] == GET_LON) // if the command is longitude request
@@ -237,15 +262,16 @@ int main(void)
 				lon_min = 0;
 				lon_sec = 0;		
 				
-				set_RX_MODE();
+				set_RX_MODE(); // listen for new data
 				
 			}
 			else // otherwise, the command is for motor control (default command)
 			{
 				mtr_cmd = ((0xFF00)&(buffer[0]<<8)) | ((0x00FF)&(buffer[1])); // get the motor duty cycle
 				srv_cmd = buffer[2];
+			#endif		
 						
-			/*
+			#ifdef DIRECT_JOYSTICK
 			mtr_cmd = analog_read(1);
 			mtr_cmd = js_mtr_scaling(mtr_cmd);
 			mtr_cmd = 0.25*mtr_cmd + .75*old_mtr_cmd;
@@ -255,8 +281,9 @@ int main(void)
 			srv_cmd = js_srv_scaling(srv_cmd);
  			if ((srv_cmd < 5) && (srv_cmd > -5))
  			srv_cmd = 0;
-			*/
+			#endif
 			
+			/* scaling and deadband */
 			 if (srv_cmd > 20)
 				srv_cmd = 20;
 			else if (srv_cmd < -20)
@@ -268,8 +295,6 @@ int main(void)
 			{
 				stop_TMR1A_pwm();
 				stop_TMR1B_pwm();
-// 				set_TMR1A_duty_cycle(0);
-// 				set_TMR1A_duty_cycle(0);
 				motor_off();
 			}
 			else  
@@ -290,24 +315,24 @@ int main(void)
 			}
 			
 				move_servo((float)srv_cmd);
-			
+			#ifndef DIRECT_JOYSTICK
 			}
-					
-//  			print_int_0(mtr_cmd);
-//  			print_char_0(',');
-//  			println_int_0(srv_cmd);
+			#endif
  		}
+		#ifndef DIRECT_JOYSTICK
  		else
  			comm_lost = 0;
-			 
-		if (gps_string_ready)
+		#endif
+		
+		#ifdef GPS_ON	 
+		if (gps_string_ready) // if a full gps sentence has been received, parse it
 		{
 			gps_string_ready = 0;
  			cli();
  				parse_GPMRC(); // parse GPS string received by UASRT1 RX interrupt
 			sei();
 		}
-
+		#endif
 		_delay_ms(LOOP_DELAY);
 
     }
@@ -352,45 +377,6 @@ void start_TMR1B_pwm()
 {
 	TCCR1A |= (1 << COM1B1); // no prescaler with f_osc (so 62.5KHz PWM)
 }
-
-
-
-void setup_TMR2_pwm()
-{
-	TCCR2A |= (1 << WGM21) | (1 << WGM20) | (1 << COM2A0); // fast PWM
-	TCCR2B |= (1 << CS20); // no prescaler with f_osc (so 62.5KHz PWM)
-}
-void set_TMR2A_duty_cycle(int duty_cycle)
-{
-	duty_cycle = .256 * duty_cycle - 1;
-	if (duty_cycle > 255)
-	duty_cycle = 255;
-	OCR2A = (char)((0x00FF) & duty_cycle);
-}
-void setup_TMR4_pwm()
-{
-	TCCR4A |= (1 << WGM41) | (1 << COM4A1); // fast PWM, OCR4A
-	TCCR4B |= (1 << WGM42) | (1 << WGM43) | (1 << CS42); // prescaler of 256, Mode 14
-	ICR4 = 1249; // 20ms period
-	OCR4A = 624; // 50% duty cycle
-}
-void set_TMR4A_duty_cycle(int duty_cycle)
-{
-	duty_cycle = .256 * duty_cycle - 1;
-	if (duty_cycle > 255)
-	duty_cycle = 255;
-	OCR4A = (char)((0x00FF) & duty_cycle);
-}
-void move_motor_forward()
-{
- 	EN1_PORT |= (1<<EN1);
- 	EN2_PORT &= ~(1<<EN2);
-}
-void move_motor_backward()
-{
-	EN1_PORT &= ~(1<<EN1);
-	EN2_PORT |= (1<<EN2);
-}
 void motor_off()
 {
 	EN1_PORT &= ~(1<<EN1);
@@ -401,19 +387,25 @@ void motor_on()
 	EN1_PORT |= (1<<EN1);
 	EN2_PORT |= (1<<EN2);
 }
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+//&&&&&&&&&&&&&&&&&&& SERVO MOTOR &&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_TMR0_pwm()
 { 
 	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM, Clear OC3A/OC3B on Compare Match, set OC3A/OC3B at BOTTOM (non-inverting mode)
 	TCCR0B |=  (1 << CS02); // prescaler of 1024
 	move_servo(45);
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
 }
 void move_servo(float angle)
 { 
 	angle = 46 + angle*.355;
 	OCR0A = (uint8_t)angle;
 }
-
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 
 //&&&&&&&&&&&&&&&&&& CURRENT SENSE &&&&&&&&&&&&&&&&&&&&&
@@ -435,7 +427,8 @@ int get_current()
 	
 	return current;
 }
-
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 
 //&&&&&&&&&&&&&&&&&& TEMPERATURE SENSE &&&&&&&&&&&&&&&&&
@@ -462,9 +455,11 @@ int get_temp()
 	temp = temp_scaling(temp);
 	return temp;
 }
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-
-// TIMER3
+//&&&&&&&&&&&&&&&&&& TIMER3 TIMOUT &&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_TMR3()
 {
 	TCCR3B |= (1<<CS32); // 256 prescaler, CTC mode
@@ -474,7 +469,8 @@ void reset_TMR3()
 {
 	TCNT3 = 0;
 }
-
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 //&&&&&&&&&&&&&&&&&&&&&& MISC &&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -503,7 +499,11 @@ void delay_ms(uint16_t ms)
 		_delay_ms(1);
 	}
 }
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
+//&&&&&&&&&&&&&&&&&&&&&&& GPS &&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void parse_GPMRC()
 {
 	uint8_t temp_buf[2];
@@ -533,7 +533,12 @@ void parse_GPMRC()
 	lon_sec = atoi((const char *)temp_buf);
 	
 }
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
+#ifdef DIRECT_JOYSTICK
+//&&&&&&&&&&&&&&&&&&& JOYSTICK &&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 int js_mtr_scaling(int value) // scales the result to commands from -1000 to 1000.
 {
 	value = value * CMD_SCALE - OFFSET; // scale to 0 -> 1000
@@ -572,7 +577,13 @@ int js_srv_scaling(float value) // scales the result to commands from -1000 to 1
 
 	return value;
 } // end of joystick_scaling
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+#endif
 
+#ifdef GPS_ON
+//&&&&&&&&&&&&&&&&&&&&&&& USART1 ISR for GPS &&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 // $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
 ISR(USART0_RX_vect)
 {
@@ -626,3 +637,4 @@ ISR(USART0_RX_vect)
 		k_RX++;
 	}
 }
+#endif
