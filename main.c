@@ -1,6 +1,6 @@
  
 #define F_CPU 8000000
-#define LOOP_DELAY 20
+#define LOOP_DELAY 5
 
 //#define DIRECT_JOYSTICK
 #define GPS_ON
@@ -74,6 +74,8 @@
 #define GET_TEMP 'T'
 #define GET_LAT 'A'
 #define GET_LON 'O'
+#define GPSOFF 'N'
+#define GPSON 'Y'
 
 
 
@@ -97,6 +99,8 @@ void reset_TMR3();
 /* GPS parsing */
 void parse_GPMRC();
 #endif
+/* Emergency stop */
+void estop();
 /* Servo */
 void setup_TMR0_pwm();
 void move_servo(float angle);
@@ -106,7 +110,7 @@ int16_t get_current();
 /* temp sensor */
 int16_t temp_scaling(float raw_value);
 int16_t get_temp();
-/* miscellanous */
+/* miscellaneous */
 void setup_gpios();
 void flash_LED(uint8_t count, uint16_t ms);
 void delay_ms(uint16_t ms);
@@ -121,7 +125,7 @@ void delay_ms(uint16_t ms);
  //&&&&&&&&&&&&&&&&& GLOABLS &&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
  /* nRF24L01 variables */
-int8_t buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and trasnmit data
+int8_t buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and transmit data
 int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 /* motor command variables */
@@ -173,7 +177,7 @@ int main(void)
 	mirf_set_RADDR(rx_address);
 	#endif
 	
-	/* ADC for current and temperature sensor (and joystick i ndirect joystick mode) */
+	/* ADC for current and temperature sensor (and joystick indirect joystick mode) */
 	setup_adc();
 	
 	/* Timers setup */
@@ -192,7 +196,6 @@ int main(void)
 
     while (1) 
     {
-		
 		TOGGLE_LED;
 		#ifndef DIRECT_JOYSTICK
 		if (comm_lost_count > 50)
@@ -206,6 +209,7 @@ int main(void)
 		{
 			if (TCNT3 > 1500) // timeout of one second
 			{
+				estop();
 				comm_lost_count++;
 				comm_lost = 1;
 				break;
@@ -217,8 +221,16 @@ int main(void)
 		{
 			#ifndef DIRECT_JOYSTICK
 			mirf_get_data(buffer); // get the data, put it in buffer
-		
-			if (buffer[0] == GET_LAT) // if the command is latitude request
+			
+			if (buffer[0] == GPSOFF) // if the command is latitude request
+			{
+				stop_RX0_interrupt();		
+			}
+			else if (buffer[0] == GPSON)
+			{
+				start_RX0_interrupt();	
+			}
+			else if (buffer[0] == GET_LAT) // if the command is latitude request
 			{
 				buffer[0] = lat_deg;
 				buffer[1] = lat_min;
@@ -314,7 +326,7 @@ int main(void)
 				}
 			}
 			
-				move_servo((float)srv_cmd);
+			move_servo((float)srv_cmd);
 			#ifndef DIRECT_JOYSTICK
 			}
 			#endif
@@ -333,9 +345,11 @@ int main(void)
 			sei();
 		}
 		#endif
+		
 		_delay_ms(LOOP_DELAY);
-
+	
     }
+
 }
 
 
@@ -499,6 +513,15 @@ void delay_ms(uint16_t ms)
 		_delay_ms(1);
 	}
 }
+void estop()
+{
+	mtr_cmd = 0; // set motor command to 0 so the motor stops if communication is lost
+	srv_cmd = 0; // set servo command to 0 so the servo stops if communication is lost
+	stop_TMR1A_pwm();
+	stop_TMR1B_pwm();
+	motor_off();
+	
+}
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
@@ -636,5 +659,6 @@ ISR(USART0_RX_vect)
 		else
 		k_RX++;
 	}
+	
 }
 #endif
