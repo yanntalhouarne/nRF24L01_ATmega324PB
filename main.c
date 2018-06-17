@@ -103,6 +103,8 @@ void parse_GPMRC();
 void estop();
 /* Servo */
 void setup_TMR0_pwm();
+//void setup_TMR4_pwm();
+//void move_servo_4(float angle);
 void move_servo(float angle);
 /* current sensor */
 int16_t current_scaling(float raw_value);
@@ -183,6 +185,7 @@ int main(void)
 	/* Timers setup */
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
 	setup_TMR0_pwm(); // setup TMR0 PWM for servo
+	//setup_TMR4_pwm(); // setup TMR0 PWM for servo
 	setup_TMR3(); // for communication timeout with controller
 	
 	sei(); // enable global interrupts
@@ -300,7 +303,7 @@ int main(void)
 				srv_cmd = 20;
 			else if (srv_cmd < -20)
 				srv_cmd = -20;
-			srv_cmd = 0.75*srv_cmd + .25*old_srv_cmd;
+			srv_cmd = 0.25*srv_cmd + .75*old_srv_cmd;
 			old_srv_cmd = srv_cmd;
 			
 			if (abs(mtr_cmd) < 100) // deadband (mtr_cmd is from -1000 to 1000)
@@ -327,6 +330,7 @@ int main(void)
 			}
 			
 			move_servo((float)srv_cmd);
+		//	move_servo_4((float)srv_cmd);
 			#ifndef DIRECT_JOYSTICK
 			}
 			#endif
@@ -346,10 +350,12 @@ int main(void)
 		}
 		#endif
 		
+		print_char_0(NL);
+		
 		_delay_ms(LOOP_DELAY);
 	
     }
-
+	
 }
 
 
@@ -408,16 +414,28 @@ void motor_on()
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_TMR0_pwm()
 { 
-	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM, Clear OC3A/OC3B on Compare Match, set OC3A/OC3B at BOTTOM (non-inverting mode)
-	TCCR0B |=  (1 << CS02); // prescaler of 1024
-	move_servo(45);
+	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM
+	TCCR0B |=  (1 << CS02) | (1 << CS00); // prescaler of 1024
+	move_servo(0);
 
 }
 void move_servo(float angle)
 { 
-	angle = 46 + angle*.355;
+	angle = 11 + angle*.0889;
 	OCR0A = (uint8_t)angle;
 }
+// void setup_TMR4_pwm()
+// {
+// 	TCCR4A |= (1 << WGM41); // fast PWM, top on ICR4
+// 	TCCR4B |= (1 << WGM43) | (1 << WGM42) | (1<<CS41); // 256 prescaler
+// 	ICR4 = 19999; // 20ms period
+// 	OCR4A = 1499;
+// }
+// void move_servo_4(float angle)
+// { 
+// 	angle = 1499 + (100/9)*angle;
+// 	OCR4A = (uint8_t)angle;
+// }
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
@@ -496,6 +514,7 @@ void setup_gpios()
 	EN1_DDR |= (1<<EN1);
 	EN2_DDR |= (1<<EN2);
 	SERVO_PWM_DDR |= (1<<SERVO_PWM);
+	DDRC |= (1<<4);
 	
 }
 void flash_LED(uint8_t count, uint16_t ms)
