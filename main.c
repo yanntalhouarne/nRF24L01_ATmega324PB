@@ -1,6 +1,6 @@
  
 #define F_CPU 8000000
-#define LOOP_DELAY 20
+#define LOOP_DELAY 5
 
 //#define DIRECT_JOYSTICK
 #define GPS_ON
@@ -74,6 +74,8 @@
 #define GET_TEMP 'T'
 #define GET_LAT 'A'
 #define GET_LON 'O'
+#define GPSOFF 'N'
+#define GPSON 'Y'
 
 
 
@@ -97,8 +99,12 @@ void reset_TMR3();
 /* GPS parsing */
 void parse_GPMRC();
 #endif
+/* Emergency stop */
+void estop();
 /* Servo */
 void setup_TMR0_pwm();
+//void setup_TMR4_pwm();
+//void move_servo_4(float angle);
 void move_servo(float angle);
 /* current sensor */
 int16_t current_scaling(float raw_value);
@@ -106,7 +112,7 @@ int16_t get_current();
 /* temp sensor */
 int16_t temp_scaling(float raw_value);
 int16_t get_temp();
-/* miscellanous */
+/* miscellaneous */
 void setup_gpios();
 void flash_LED(uint8_t count, uint16_t ms);
 void delay_ms(uint16_t ms);
@@ -121,7 +127,7 @@ void delay_ms(uint16_t ms);
  //&&&&&&&&&&&&&&&&& GLOABLS &&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
  /* nRF24L01 variables */
-int8_t buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and trasnmit data
+int8_t buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and transmit data
 int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
 /* motor command variables */
@@ -173,12 +179,13 @@ int main(void)
 	mirf_set_RADDR(rx_address);
 	#endif
 	
-	/* ADC for current and temperature sensor (and joystick i ndirect joystick mode) */
+	/* ADC for current and temperature sensor (and joystick indirect joystick mode) */
 	setup_adc();
 	
 	/* Timers setup */
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
 	setup_TMR0_pwm(); // setup TMR0 PWM for servo
+	//setup_TMR4_pwm(); // setup TMR0 PWM for servo
 	setup_TMR3(); // for communication timeout with controller
 	
 	sei(); // enable global interrupts
@@ -192,7 +199,6 @@ int main(void)
 
     while (1) 
     {
-		
 		TOGGLE_LED;
 		#ifndef DIRECT_JOYSTICK
 		if (comm_lost_count > 50)
@@ -206,6 +212,7 @@ int main(void)
 		{
 			if (TCNT3 > 1500) // timeout of one second
 			{
+				estop();
 				comm_lost_count++;
 				comm_lost = 1;
 				break;
@@ -217,8 +224,16 @@ int main(void)
 		{
 			#ifndef DIRECT_JOYSTICK
 			mirf_get_data(buffer); // get the data, put it in buffer
-		
-			if (buffer[0] == GET_LAT) // if the command is latitude request
+			
+			if (buffer[0] == GPSOFF) // if the command is latitude request
+			{
+				stop_RX0_interrupt();		
+			}
+			else if (buffer[0] == GPSON)
+			{
+				start_RX0_interrupt();	
+			}
+			else if (buffer[0] == GET_LAT) // if the command is latitude request
 			{
 				buffer[0] = lat_deg;
 				buffer[1] = lat_min;
@@ -288,7 +303,7 @@ int main(void)
 				srv_cmd = 20;
 			else if (srv_cmd < -20)
 				srv_cmd = -20;
-			srv_cmd = 0.75*srv_cmd + .25*old_srv_cmd;
+			srv_cmd = 0.25*srv_cmd + .75*old_srv_cmd;
 			old_srv_cmd = srv_cmd;
 			
 			if (abs(mtr_cmd) < 100) // deadband (mtr_cmd is from -1000 to 1000)
@@ -314,7 +329,8 @@ int main(void)
 				}
 			}
 			
-				move_servo((float)srv_cmd);
+			move_servo((float)srv_cmd);
+		//	move_servo_4((float)srv_cmd);
 			#ifndef DIRECT_JOYSTICK
 			}
 			#endif
@@ -333,9 +349,13 @@ int main(void)
 			sei();
 		}
 		#endif
+		
+		print_char_0(NL);
+		
 		_delay_ms(LOOP_DELAY);
-
+	
     }
+	
 }
 
 
@@ -394,16 +414,28 @@ void motor_on()
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_TMR0_pwm()
 { 
-	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM, Clear OC3A/OC3B on Compare Match, set OC3A/OC3B at BOTTOM (non-inverting mode)
-	TCCR0B |=  (1 << CS02); // prescaler of 1024
-	move_servo(45);
+	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM
+	TCCR0B |=  (1 << CS02) | (1 << CS00); // prescaler of 1024
+	move_servo(0);
 
 }
 void move_servo(float angle)
 { 
-	angle = 46 + angle*.355;
+	angle = 11 + angle*.0889;
 	OCR0A = (uint8_t)angle;
 }
+// void setup_TMR4_pwm()
+// {
+// 	TCCR4A |= (1 << WGM41); // fast PWM, top on ICR4
+// 	TCCR4B |= (1 << WGM43) | (1 << WGM42) | (1<<CS41); // 256 prescaler
+// 	ICR4 = 19999; // 20ms period
+// 	OCR4A = 1499;
+// }
+// void move_servo_4(float angle)
+// { 
+// 	angle = 1499 + (100/9)*angle;
+// 	OCR4A = (uint8_t)angle;
+// }
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
@@ -482,6 +514,7 @@ void setup_gpios()
 	EN1_DDR |= (1<<EN1);
 	EN2_DDR |= (1<<EN2);
 	SERVO_PWM_DDR |= (1<<SERVO_PWM);
+	DDRC |= (1<<4);
 	
 }
 void flash_LED(uint8_t count, uint16_t ms)
@@ -498,6 +531,15 @@ void delay_ms(uint16_t ms)
 	{
 		_delay_ms(1);
 	}
+}
+void estop()
+{
+	mtr_cmd = 0; // set motor command to 0 so the motor stops if communication is lost
+	srv_cmd = 0; // set servo command to 0 so the servo stops if communication is lost
+	stop_TMR1A_pwm();
+	stop_TMR1B_pwm();
+	motor_off();
+	
 }
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -636,5 +678,6 @@ ISR(USART0_RX_vect)
 		else
 		k_RX++;
 	}
+	
 }
 #endif

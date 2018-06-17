@@ -27,6 +27,8 @@ unsigned char receive_string_ready;
 void usart0_send_char(unsigned char data);
 unsigned char usart0_receive_char();
 void setup_usart0(unsigned char BR);
+void stop_RX0_interrupt();
+void start_RX0_interrupt();
 
 void usart1_send_char(unsigned char data);
 unsigned char usart1_receive_char();
