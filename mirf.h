@@ -14,13 +14,13 @@
 #define mirf_CONFIG (1 << MASK_RX_DR) | (1 << MAX_RT) | (1 << EN_CRC) | (0 << CRCO)
 
 // Pin definitions for chip select and chip enabled of the MiRF module
-#define CE 7
+#define CE 7 // PC7
 
 // Definitions for selecting and enabling MiRF module
-#define mirf_CSN_hi PORTD |= (1 << SS_1);  // PD6 is Chip Select for SPI
+#define mirf_CSN_hi PORTD |=  (1 << SS_1);  // PD6 is Chip Select for SPI
 #define mirf_CSN_lo PORTD &= ~(1 << SS_1);
-#define mirf_CE_hi PORTC |= (1 << CE); // PC7 is Chip Enable
-#define mirf_CE_lo PORTC &= ~(1 << CE);
+#define mirf_CE_hi  PORTC |=  (1 << CE); // PC7 is Chip Enable
+#define mirf_CE_lo  PORTC &= ~(1 << CE);
 
 
 // Public standard functions
@@ -29,6 +29,7 @@ extern void mirf_config();
 extern void mirf_send(char *value, char len);
 extern void mirf_set_RADDR(char *adr);
 extern void mirf_set_TADDR(char *adr);
+extern unsigned char mirf_read_MAX_RT();
 extern char mirf_data_ready();
 extern char mirf_data_sent();
 extern void mirf_get_data(char *data);

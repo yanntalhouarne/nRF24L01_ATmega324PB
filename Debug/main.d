@@ -17,7 +17,7 @@ main.d main.o: .././main.c \
  .././usart.h .././print.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\lib\gcc\avr\5.4.0\include\stddef.h \
  c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\stdlib.h \
- .././spi.h .././mirf.h .././nRF24L01.h .././adc.h
+ .././spi.h .././mirf.h .././nRF24L01.h
 
 c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\include\avr\io.h:
 
@@ -62,5 +62,3 @@ c:\program\ files\ (x86)\atmel\studio\7.0\toolchain\avr8\avr8-gnu-toolchain\avr\
 .././mirf.h:
 
 .././nRF24L01.h:
-
-.././adc.h:
