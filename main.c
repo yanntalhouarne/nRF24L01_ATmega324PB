@@ -10,7 +10,7 @@
 #include "spi.h"
 #include "mirf.h"
 
-#define LOOP_DELAY 1000
+#define LOOP_DELAY 10
 
 
  //&&&&&&&&&&&&&&&&& MACROS &&&&&&&&&&&&&&&&&&&&&&
@@ -36,6 +36,8 @@ void delay_ms(uint16_t ms);
  /* nRF24L01 variables */
 char buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and transmit data
 char tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
+	
+uint16_t max_rt_count = 0;
 
 
 int main(void)
@@ -43,7 +45,7 @@ int main(void)
 	setup_gpios(); 
 	
 	/* USART setup */
-	setup_usart0(BR_9600); // for NEO6 GPS
+	setup_usart0(BR_38400); // for NEO6 GPS
 	
 	/* nRF24L01 setup */
 	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
@@ -51,9 +53,9 @@ int main(void)
 	mirf_config(); // configure nRF24L01
 	mirf_set_TADDR(tx_address);
 	
-	buffer[0] = '1';
-	buffer[1] = '2';
-	buffer[2] = '3';
+	buffer[0] = 10;
+	buffer[1] = 20;
+	buffer[2] = 30;
 			
 	sei(); // enable global interrupts
 	
@@ -65,6 +67,8 @@ int main(void)
     {
 		TOGGLE_LED;
 		 
+		 for (int i=0; i<3; i++)
+			buffer[i]++;
 		 
 		mirf_send(buffer, mirf_PAYLOAD);
 		
@@ -72,7 +76,8 @@ int main(void)
 		{
 			if (mirf_read_MAX_RT())
 			{
-				println_0("MAX_RT;");
+				max_rt_count++;	
+				println_int_0(max_rt_count);
 				break;
 			}
 		}
