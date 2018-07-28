@@ -37,7 +37,8 @@ void delay_ms(uint16_t ms);
 char buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and transmit data
 char tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 	
-uint16_t max_rt_count = 0;
+uint8_t max_rt_count = 0;
+uint8_t transmission_count = 0;
 
 
 int main(void)
@@ -69,20 +70,27 @@ int main(void)
 		 
 		 for (int i=0; i<3; i++)
 			buffer[i]++;
-		 
+		  
 		mirf_send(buffer, mirf_PAYLOAD);
+		transmission_count++;
 		
 		while (!mirf_data_sent())
 		{
 			if (mirf_read_MAX_RT())
 			{
 				max_rt_count++;	
-				println_int_0(max_rt_count);
 				break;
 			}
 		}
 		
-		_delay_ms(LOOP_DELAY);
+		if (transmission_count == 100)
+		{
+			print_int_0(100-max_rt_count);
+			print_char_0('%');
+			print_char_0(NL);
+		}
+		
+		//_delay_ms(LOOP_DELAY);
     }
 }
 
