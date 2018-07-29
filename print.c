@@ -167,7 +167,17 @@ void println_long_0(long number)
 	usart0_send_char(0x0A); // NL
 }
 
-void println_decimal_0(double number, unsigned char decimals) 
+void print_float_0(float number, unsigned char decimals)
+{
+	char str[4];
+	dtostrf(number, 1, (decimals+3), str);
+	for (int i=0; i<(decimals) ; i++)
+	{
+		usart0_send_char(str[i]);
+	}
+}
+
+void println_float_0(float number, unsigned char decimals)
 {
 	char str[4];
 	dtostrf(number, 1, (decimals+3), str);
