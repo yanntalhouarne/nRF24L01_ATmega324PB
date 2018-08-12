@@ -16,12 +16,21 @@
  //&&&&&&&&&&&&&&&&& MACROS &&&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 /* LED */
-#define LED_DDR DDRE
-#define LED_PORT PORTE
-#define LED_PIN 4
-#define LED_ON LED_PORT |= (1<<LED_PIN);
-#define LED_OFF LED_PORT &= ~(1<<LED_PIN);
-#define TOGGLE_LED LED_PORT ^= (1<<LED_PIN);
+#define LED1_DDR DDRE
+#define LED1_PORT PORTE
+#define LED1_PIN 4
+#define LED1_ON LED1_PORT |= (1<<LED1_PIN);
+#define LED1_OFF LED1_PORT &= ~(1<<LED1_PIN);
+#define TOGGLE_LED LED1_PORT ^= (1<<LED1_PIN);
+
+#define LED2_DDR DDRB
+#define LED2_PORT PORTB
+#define LED2_PIN 5
+#define LED2_ON LED2_PORT |= (1<<LED2_PIN);
+#define LED2_OFF LED2_PORT &= ~(1<<LED2_PIN);
+#define TOGGLE_LED2 LED2_PORT ^= (1<<LED2_PIN);
+
+
 
 /* functions */
 void setup_gpios();
@@ -67,7 +76,7 @@ int main(void)
 	
     while (1) 
     {
-		TOGGLE_LED;
+		TOGGLE_LED2;
 		 
 		 for (int i=0; i<3; i++)
 			buffer[i]++;
@@ -85,7 +94,7 @@ int main(void)
 			}
 		}
 		
-		//_delay_ms(LOOP_DELAY);
+		_delay_ms(LOOP_DELAY);
     }
 }
 
@@ -96,7 +105,7 @@ int main(void)
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_gpios()
 {
-	LED_DDR |= (1<<LED_PIN); // set LED gpio as output
+	LED1_DDR |= (1<<LED1_PIN); // set LED gpio as output
 	DDRC |= (1<<4);
 	
 }
@@ -104,7 +113,7 @@ void flash_LED(uint8_t count, uint16_t ms)
 {
 	for (uint8_t i = 0; i < count; i++)
 	{
-		TOGGLE_LED;
+		TOGGLE_LED2;
 		delay_ms(ms);
 	}
 }

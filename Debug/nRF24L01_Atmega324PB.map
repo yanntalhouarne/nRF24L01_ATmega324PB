@@ -1010,9 +1010,9 @@ END GROUP
  .debug_str     0x00000000      0x35a C:/Program Files (x86)/Atmel/Studio/7.0/Packs/atmel/ATmega_DFP/1.2.209/gcc/dev/atmega324pb/avr5/crtatmega324pb.o
  .debug_str     0x0000035a      0x2c4 main.o
                                 0x30c (size before relaxing)
- .debug_str     0x0000061e      0x129 mirf.o
-                                0x305 (size before relaxing)
- .debug_str     0x00000747      0x10f print.o
+ .debug_str     0x0000061e       0xe3 mirf.o
+                                0x2f9 (size before relaxing)
+ .debug_str     0x00000701      0x155 print.o
                                 0x2d0 (size before relaxing)
  .debug_str     0x00000856      0x123 spi.o
                                 0x2aa (size before relaxing)
