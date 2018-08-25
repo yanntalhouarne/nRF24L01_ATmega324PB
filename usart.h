@@ -13,9 +13,12 @@
 
 #define MAX_STRING_SIZE 64
 
-#define BR_9600 51
-#define BR_38400 12
-#define BR_250000 1
+#define BR_9600 103
+#define BR_38400 25
+#define BR_115200 8
+#define BR_250000 3
+#define BR_500000 1
+#define BR_1000000 0
 
 
 
