@@ -114,11 +114,11 @@ extern unsigned char mirf_read_MAX_RT()
 	
 	_delay_ms(1);
 	
-// 	if ((status>>MAX_RT)&0x01)
-// 		status = 1;
-// 	else 
-// 		status  = 0;
-	
+	if ((status>>MAX_RT)&0x01)
+			status = 1;
+		else 
+			status = 0;
+		
 	return status;
 }
 

@@ -81,6 +81,8 @@ int main(void)
 	println_0("System initialized...;");
 	_delay_ms(10);
 	
+	LED1_OFF;
+	
     while (1) 
     {
 		TOGGLE_LED2;
@@ -104,6 +106,8 @@ int main(void)
 			if (mirf_read_MAX_RT())
 			{
 				max_rt_count++;	
+				//_delay_ms(50);
+				TOGGLE_LED1;
 				break;
 			}
 		}
@@ -111,10 +115,11 @@ int main(void)
  		if (TMR1_flag)
  		{
  			TMR1_flag = 0;
-			TOGGLE_LED1;
+			 LED1_OFF;
  		}
 		
-		//_delay_ms(LOOP_DELAY);
+	
+		_delay_ms(LOOP_DELAY);
     }
 }
 
