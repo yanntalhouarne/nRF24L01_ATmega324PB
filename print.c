@@ -169,7 +169,7 @@ void println_long_0(long number)
 
 void print_float_0(float number, unsigned char decimals)
 {
-	char str[4];
+	char str[8];
 	dtostrf(number, 1, (decimals+3), str);
 	for (int i=0; i<(decimals) ; i++)
 	{
@@ -179,7 +179,7 @@ void print_float_0(float number, unsigned char decimals)
 
 void println_float_0(float number, unsigned char decimals)
 {
-	char str[4];
+	char str[8];
 	dtostrf(number, 1, (decimals+3), str);
 	for (int i=0; i<(decimals) ; i++)
 	{

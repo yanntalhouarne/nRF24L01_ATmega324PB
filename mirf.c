@@ -69,7 +69,7 @@ void mirf_set_RADDR(char *adr)
 // Sets the receiving address
 {
 	mirf_CE_lo;
-	mirf_write_register(RX_ADDR_P1, adr, 5);
+	mirf_write_register(RX_ADDR_P0, adr, 5);
 	mirf_CE_hi;
 }
 
