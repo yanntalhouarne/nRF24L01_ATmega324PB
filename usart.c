@@ -3,7 +3,7 @@
 #include "usart.h"
 #include "print.h"
 
-
+struct usart_char * string_header = NULL;
 
 
 void usart0_send_char(unsigned char data)
@@ -56,9 +56,9 @@ unsigned char usart1_receive_char()
 /* usart1_receive_string */
 /* dynamically allocates data to store unknown sized string */
 
-unsigned char * usart1_receive_string()
+struct usart_char * usart1_receive_string()
 {
-	unsigned char * rcv_ptr;
+	struct usart_char * new_char;
 
 	int i = 0;
 
@@ -66,17 +66,27 @@ unsigned char * usart1_receive_string()
 	{
 		while (!(UCSR1A & (1 << RXC))) // RXCn is set when there are unread data in the receive buffer and cleared when the receive buffer is empty
 		;
-	    (* rcv_ptr) = UDR1; // update the value at the address pointed by rcv_ptr
-		rcv_ptr++; // increment pointer address by one for next byte
 
-	    if (rcv_ptr == NL) 
-	    {
-		   rcv_ptr -= i; // reset pointer to head of the string	
-		   break;
-	    }
-		else if (i == MAX_STRING_SIZE)
+		if(!new_char = malloc(sizeof(* new_char))) // allocate enough memory for a usart_char struct
 		{
-			rcv_ptr = NULL;
+			string_header = NULL;
+			break;
+		}
+
+		new_char->character = UDR1; // store character in the new_char node
+
+		new_char->next = string_header; // new_node next pointer is previous header pointer 
+
+		string_header = new_char; // new string_header now points to newn_node
+
+	    if (new_char->character == NL)  // if string NULL character is found, break
+	    {
+		   break; // full string is implemented as a linked list, exit while loop
+	    }
+		else if (i == MAX_STRING_SIZE) // if we have reached the maximum number of characters allowed
+		{
+			string_header = NULL; // set the list header to NULL to indicate that maximum size is reached.
+			break; // exit while loop
 		}
 	    else
 	    {
@@ -84,7 +94,20 @@ unsigned char * usart1_receive_string()
 	    }
 	}
 
-	return rcv_ptr;
+	return string_header;
+}
+
+void usart_free_string()
+{
+	struct usart_char * cur;
+
+
+	while (cur->next_char != NULL)
+		prev = cur;
+		string_header = cur->next; // bypass first node
+		free(cur); // deallocate memory
+		cur = string_header; 
+	}
 }
 
 void setup_usart1(unsigned char BR)

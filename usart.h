@@ -17,7 +17,10 @@
 #define BR_38400 12
 #define BR_250000 1
 
-
+struct usart_char {
+    unsigned char character;
+    struct usart_char * next_char;
+}
 
 // globals for RX interrupts string
 unsigned char rcv_string[MAX_STRING_SIZE];
@@ -31,7 +34,8 @@ void start_RX0_interrupt();
 
 void usart1_send_char(unsigned char data);
 unsigned char usart1_receive_char();
-unsigned char * usart1_receive_string();
+struct usart_char * usart1_receive_string();
+void usart_free_string();
 void setup_usart1(unsigned char BR);
 unsigned char check_RX();
 void clear_RX();
