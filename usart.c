@@ -56,12 +56,12 @@ unsigned char usart1_receive_char()
 /* usart1_receive_string */
 /* dynamically allocates data to store unknown sized string */
 
-void usart1_receive_string()
+unsigned char * usart1_receive_string()
 {
 	unsigned char * rcv_ptr;
 
 	int i = 0;
-	
+
 	while(1)
 	{
 		while (!(UCSR1A & (1 << RXC))) // RXCn is set when there are unread data in the receive buffer and cleared when the receive buffer is empty

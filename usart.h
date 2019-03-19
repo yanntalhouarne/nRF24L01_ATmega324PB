@@ -31,7 +31,7 @@ void start_RX0_interrupt();
 
 void usart1_send_char(unsigned char data);
 unsigned char usart1_receive_char();
-void usart1_receive_string();
+unsigned char * usart1_receive_string();
 void setup_usart1(unsigned char BR);
 unsigned char check_RX();
 void clear_RX();
