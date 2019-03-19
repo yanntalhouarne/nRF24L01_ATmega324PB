@@ -53,24 +53,36 @@ unsigned char usart1_receive_char()
 	return UDR1;
 }
 
+/* usart1_receive_string */
+/* dynamically allocates data to store unknown sized string */
+
 void usart1_receive_string()
 {
+	unsigned char * rcv_ptr;
+
 	int i = 0;
+	
 	while(1)
 	{
 		while (!(UCSR1A & (1 << RXC))) // RXCn is set when there are unread data in the receive buffer and cleared when the receive buffer is empty
 		;
-	    rcv_string[i] = UDR1;
-	    if ((rcv_string[i] == NL) || (i == MAX_STRING_SIZE))
+	    (*rcv_ptr) = UDR1; // update the value at the address pointed by rcv_ptr
+		rcv_ptr++; // increment pointer address by one for next byte
+
+	    if (rcv_ptr == NL) 
 	    {
 		   break;
 	    }
+		else if (i == MAX_STRING_SIZE)
+		{
+			rcv_ptr = NULL;
+		}
 	    else
 	    {
 		    i++;
-		    
 	    }
 	}
+	return rcv_ptr;
 }
 
 void setup_usart1(unsigned char BR)
