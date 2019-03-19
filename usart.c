@@ -66,11 +66,12 @@ unsigned char * usart1_receive_string()
 	{
 		while (!(UCSR1A & (1 << RXC))) // RXCn is set when there are unread data in the receive buffer and cleared when the receive buffer is empty
 		;
-	    (*rcv_ptr) = UDR1; // update the value at the address pointed by rcv_ptr
+	    (* rcv_ptr) = UDR1; // update the value at the address pointed by rcv_ptr
 		rcv_ptr++; // increment pointer address by one for next byte
 
 	    if (rcv_ptr == NL) 
 	    {
+		   rcv_ptr -= i; // reset pointer to head of the string	
 		   break;
 	    }
 		else if (i == MAX_STRING_SIZE)
@@ -82,6 +83,7 @@ unsigned char * usart1_receive_string()
 		    i++;
 	    }
 	}
+
 	return rcv_ptr;
 }
 
