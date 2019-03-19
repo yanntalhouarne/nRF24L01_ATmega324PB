@@ -42,8 +42,8 @@ void mirf_config()
 	mirf_config_register(RF_CH, mirf_CH);
 	
 	// Set length of incoming payload 
-	mirf_config_register(RX_PW_P0, mirf_PAYLOAD); // Auto-ACK pipe ...
-	mirf_config_register(RX_PW_P1, 0x00); // Data payload pipe
+	mirf_config_register(RX_PW_P0, 0x00); // Auto-ACK pipe ...
+	mirf_config_register(RX_PW_P1, mirf_PAYLOAD); // Data payload pipe
 	mirf_config_register(RX_PW_P2, 0x00);
 	mirf_config_register(RX_PW_P3, 0x00);
 	mirf_config_register(RX_PW_P4, 0x00);
@@ -53,10 +53,10 @@ void mirf_config()
    	mirf_config_register(RF_SETUP, (0x03<<RF_PWR)); // 1Mbps, 0dBm
 	   
     // Auto Acknowledgment
-    mirf_config_register(EN_AA,(1<<ENAA_P0)|(0<<ENAA_P1)|(0<<ENAA_P2)|(0<<ENAA_P3)|(0<<ENAA_P4)|(0<<ENAA_P5)); // AA enable on Pipe 0
+    mirf_config_register(EN_AA,(1<<ENAA_P0)|(1<<ENAA_P1)|(0<<ENAA_P2)|(0<<ENAA_P3)|(0<<ENAA_P4)|(0<<ENAA_P5)); // AA enable on Pipe 0
 	
 	// Enable RX addresses
-	 mirf_config_register(EN_RXADDR,(1<<ERX_P0)|(0<<ERX_P1)|(0<<ERX_P2)|(0<<ERX_P3)|(0<<ERX_P4)|(0<<ERX_P5)); // Enable Pipe 1
+	 mirf_config_register(EN_RXADDR,(1<<ERX_P0)|(1<<ERX_P1)|(0<<ERX_P2)|(0<<ERX_P3)|(0<<ERX_P4)|(0<<ERX_P5)); // Enable Pipe 1
 	
 	// Auto retransmit delay: 1000 us and Up to 15 retransmit trials
 	mirf_config_register(SETUP_RETR,(0x0F<<ARD)|(0x0F<<ARC)); // 4000us delay, 15 retransmissions
@@ -69,7 +69,7 @@ void mirf_set_RADDR(char *adr)
 // Sets the receiving address
 {
 	mirf_CE_lo;
-	mirf_write_register(RX_ADDR_P0, adr, 5);
+	mirf_write_register(RX_ADDR_P1, adr, 5);
 	mirf_CE_hi;
 }
 
