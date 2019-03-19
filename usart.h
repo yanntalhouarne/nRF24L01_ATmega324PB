@@ -20,7 +20,7 @@
 struct usart_char {
     unsigned char character;
     struct usart_char * next_char;
-}
+};
 
 // globals for RX interrupts string
 unsigned char rcv_string[MAX_STRING_SIZE];

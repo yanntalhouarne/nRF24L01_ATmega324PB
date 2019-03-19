@@ -67,7 +67,7 @@ struct usart_char * usart1_receive_string()
 		while (!(UCSR1A & (1 << RXC))) // RXCn is set when there are unread data in the receive buffer and cleared when the receive buffer is empty
 		;
 
-		if(!new_char = malloc(sizeof(* new_char))) // allocate enough memory for a usart_char struct
+		if( !(new_char = malloc(sizeof(* new_char)))) // allocate enough memory for a usart_char struct
 		{
 			string_header = NULL;
 			break;
@@ -75,7 +75,7 @@ struct usart_char * usart1_receive_string()
 
 		new_char->character = UDR1; // store character in the new_char node
 
-		new_char->next = string_header; // new_node next pointer is previous header pointer 
+		new_char->next_char = string_header; // new_node next pointer is previous header pointer 
 
 		string_header = new_char; // new string_header now points to newn_node
 
@@ -99,12 +99,11 @@ struct usart_char * usart1_receive_string()
 
 void usart_free_string()
 {
-	struct usart_char * cur;
-
+	struct usart_char * cur = string_header;
 
 	while (cur->next_char != NULL)
-		prev = cur;
-		string_header = cur->next; // bypass first node
+	{
+		string_header = cur->next_char; // bypass first node
 		free(cur); // deallocate memory
 		cur = string_header; 
 	}
