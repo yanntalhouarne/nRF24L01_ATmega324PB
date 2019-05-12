@@ -4,13 +4,14 @@
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <stdlib.h>
 #include <math.h>
 
 #include "usart.h"
 #include "adc.h"
 #include "print.h"
 #include "spi.h"
-#include "mirf.h" 
+#include "nRF.h" 
 
 
 
@@ -22,67 +23,83 @@
  /*&&& Main loop delay ****/
 		#define LOOP_DELAY 10
 		
-		#define DATA_CMD_DELAY 10
  
 /*&&& LEDs &&&*/
-	/* LED 1*/
-		#define LED1_DDR DDRE
-		#define LED1_PORT PORTE
-		#define LED1_PIN 4
-		#define LED1_ON LED1_PORT |= (1<<LED1_PIN);
-		#define LED1_OFF LED1_PORT &= ~(1<<LED1_PIN);
-		#define TOGGLE_LED1 LED1_PORT ^= (1<<LED1_PIN);
-	/* LED2 */
-		#define LED2_DDR DDRB
-		#define LED2_PORT PORTB
-		#define LED2_PIN 5
-		#define LED2_ON LED2_PORT |= (1<<LED2_PIN);
-		#define LED2_OFF LED2_PORT &= ~(1<<LED2_PIN);
-		#define TOGGLE_LED2 LED2_PORT ^= (1<<LED2_PIN);
+	/* Blue LED on main board */
+		#define LED_DDR    DDRC
+		#define LED_PORT   PORTC
+		#define LED_PIN    0
+		#define LED_ON     LED_PORT  |= (1<<LED_PIN);
+		#define LED_OFF    LED_PORT &= ~(1<<LED_PIN);
+		#define TOGGLE_LED LED_PORT  ^= (1<<LED_PIN);
+	/* Blue LED on top board */
+		#define BLUE_LED_DDR    DDRC
+		#define BLUE_LED_PORT 	PORTC
+		#define BLUE_LED_PIN 		3
+		#define BLUE_LED_ON 		BLUE_LED_PORT  |= (1<<BLUE_LED_PIN);
+		#define BLUE_LED_OFF 		BLUE_LED_PORT &= ~(1<<BLUE_LED_PIN);
+		#define TOGGLE_BLUE_LED BLUE_LED_PORT  ^= (1<<BLUE_LED_PIN);
+	/* Red LED on top board */
+		#define RED_LED_DDR    DDRC
+		#define RED_LED_PORT   PORTC
+		#define RED_LED_PIN    1
+		#define RED_LED_ON     RED_LED_PORT  |= (1<<RED_LED_PIN);
+		#define RED_LED_OFF    RED_LED_PORT &= ~(1<<RED_LED_PIN);
+		#define TOGGLE_RED_LED RED_LED_PORT  ^= (1<<RED_LED_PIN);
+	/* Orange LED on top board */
+		#define ORANGE_LED_DDR    DDRC
+		#define ORANGE_LED_PORT   PORTC
+		#define ORANGE_LED_PIN    5
+		#define ORANGE_LED_ON     ORANGE_LED_PORT  |= (1<<ORANGE_LED_PIN);
+		#define ORANGE_LED_OFF    ORANGE_LED_PORT &= ~(1<<ORANGE_LED_PIN);
+		#define TOGGLE_ORANGE_LED ORANGE_LED_PORT  ^= (1<<ORANGE_LED_PIN);
 
 /*&&& DC motor &&&*/
 	/* IN1 */
-		#define IN1 5
-		#define IN1_DDR DDRD
+		#define IN1 		 5
+		#define IN1_DDR  DDRD
 		#define IN1_PORT PORTD
-		#define IN1_PIN 5
+		#define IN1_PIN  5
 	/* IN2 */
-		#define IN2 4
-		#define IN2_DDR DDRD
+		#define IN2			 4
+		#define IN2_DDR  DDRD
 		#define IN2_PORT PORTD
-		#define IN2_PIN PIND
+		#define IN2_PIN  PIND
 	/* ENA */
 		#define EN1_PORT PORTB
-		#define EN1_DDR DDRB
-		#define EN1 1
+		#define EN1_DDR  DDRB
+		#define EN1 	   1
 	/* ENB */
 		#define EN2_PORT PORTB
-		#define EN2_DDR DDRB
-		#define EN2 2
+		#define EN2_DDR  DDRB
+		#define EN2      2
 	/* RATE LIMIT */
 		#define RATE_LIMIT_THRESHOLD 25
 		#define RATE_LIMIT 10
 		
 /*&&& Motor command macros &&&*/
-		#define MTR_SIDE_DEADBAND 50 // any mtr_cmd under thsi value will be considered a 0 cmd
-		#define MTR_CMD 0
-		#define ANALOG 1
+		#define MTR_CMD 				  0
+		#define ANALOG 					  1
 
 /*&&& ADC macros &&&*/
-		#define VREF 5.08
-		#define CURRENT_SENSOR 0
-		#define VOLTAGE_SENSOR 1
-		#define TEMP_SENSOR 2
-		#define SERIESRESISTOR 10000 
-		#define THERMISTORNOMINAL 10000
+		#define VREF 						 	 5.08
+		#define CURRENT_SENSOR     0
+		#define VOLTAGE_SENSOR     1
+		#define TEMP_SENSOR        2
+		#define SERIESRESISTOR     10000 
+		#define THERMISTORNOMINAL  10000
 		#define TEMPERATURENOMINAL 25
-		#define BCOEFFICIENT 4250
+		#define BCOEFFICIENT 		   4250
+		
+/*&&& Servo macros &&&*/
+		#define SERVO_PWM_DDR DDRB
+		#define SERVO_PWM_PIN 3  // PB3
 
 
  //&&&&&&&&&&&&& Function protorypes &&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
  
-	/*&&& DC motor variables &&&*/
+/*&&& DC motor functions &&&*/
 		void setup_TMR1_pwm();
 		void start_TMR1A_pwm();
 		void start_TMR1B_pwm();
@@ -94,17 +111,17 @@
 		void set_TMR1B_duty_cycle(int duty_cycle);
 		void process_mtr_cmd();
 		
-	/*&&& TMR3 for communication timeout &&&*/
+/*&&& TMR3 for communication timeout &&&*/
 		void setup_TMR3();
 		void start_TMR3();
 		void stop_TMR3();
 	
-	/*&&& Analog reading functions &&&*/
+/*&&& Analog reading functions &&&*/
 		float get_voltage();
 		float get_current();
 		float get_temperature();
 
-	 /*&&& Misc &&&*/
+	/*&&& Misc &&&*/
 		 void setup_gpios();
 		 void flash_LED(uint8_t count, uint16_t ms);
 		 void delay_ms(uint16_t ms);
@@ -112,54 +129,63 @@
  //&&&&&&&&&&&&&&&&& GLOBALS &&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
  
- /*&&& nRF24L01 variables &&&*/
+/*&&& nRF24L01 data buffers &&&*/
 	char buffer[mirf_PAYLOAD] = {0,0,0,0,0,0}; // for the nRF24L01 receive and transmit data
 	char buffer_analog[mirf_PAYLOAD] = {0,0,0,0,0,0};
 	char buffer_cmd[mirf_PAYLOAD] = {0,0,0,0,0,0};
-		
 	char rx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
 	char tx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};	
+	
+/*&&& motor command &&&*/
 	volatile int16_t mtr_cmd = 0;	
 	volatile int16_t old_mtr_cmd = 0;
 	volatile uint16_t unsigned_motor_cmd = 1000;
-	float alpha = 0.1;
+	float alpha = 0.7;
+	
+/*&&& servo command &&&*/	
+	int8_t srv_cmd = 0;
+	
+/*&&& communication status &&&*/
 	volatile uint16_t max_rt_count = 0;
 	volatile uint16_t transmission_count = 0;
 	volatile float signal_strength = 0;
 
- /*&&& nRF24L01 variables &&&*/
+/*&&& TMR1 flag &&&*/
 	volatile uint8_t TMR1_flag = 0;
 	
 /*&&& communication timeout variables &&&*/
 	volatile uint8_t timeout = 0;
+	volatile int8_t false_cmd = 0;
 	uint8_t nbr_rcv_cmd = 0;
 	
 /*&&& ADC variables &&&*/
-	int16_t current = 32;
-	int16_t voltage = 125;
-	int16_t temperature = 194;
+	volatile int16_t current = 0;
+	volatile int16_t old_current = 0;
+	volatile int16_t voltage = 0;
+	volatile int16_t old_voltage = 0;
+	volatile int16_t temperature = 0;
+	volatile int16_t old_temperature = 0;
 	
-/* &&& Misc &&&*/
-	volatile int8_t temp = 0;
-	volatile int8_t false_cmd = 0;
-	
-	
-	
+
 	
 	
+	
+ //&&&&&&&&&&&&&&&&& MAIN &&&&&&&&&&&&&&&&&&&&&&&&
+ //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 int main(void)
 {
+	/* setup pins */
 	setup_gpios(); 
 	
 	/* USART setup */
-	setup_usart0(BR_38400); // for NEO6 GPS
+	USART0_setup(BR_38400); // for NEO6 GPS
 	
 	/* nRF24L01 setup */
-	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
-	mirf_init(); // initialize nRF24L01
-	mirf_config(); // configure nRF24L01
-	mirf_set_RADDR(rx_address);
-	mirf_set_TADDR(tx_address);
+	SPI1_masterInit();  // setup device as master for SPI com with nRF24L01
+	nRF_init(); 							 // initialize nRF24L01
+	nRF_config(); 						 // configure nRF24L01
+	nRF_RXsetAddr(rx_address);
+	nRF_TXsetAddr(tx_address);
 	
 	/* setup TMR3 for communication tiemout */
 	setup_TMR3();
@@ -170,7 +196,10 @@ int main(void)
 
 	/* DC motor setup */
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
+	motor_off();
 	
+	/* Servo motor setup */
+	setup_TMR0_pwm();
 	
 	sei(); // enable global interrupts
 	
@@ -179,23 +208,35 @@ int main(void)
 	println_0("System initialized...;");
 	_delay_ms(10);
 	
-	LED1_OFF;
-	LED2_OFF;
-
-
-	set_RX_MODE();
+	nRF_SetRxMode();
 	
-    while (1)  
-    {
-		LED1_OFF;
+    while (1) // main loop
+    {	
+		TOGGLE_LED;
 		
-		set_RX_MODE();
+		RED_LED_OFF;
+		ORANGE_LED_OFF;
 		
+		voltage = (int16_t)(100*get_voltage()); // in V
+		voltage = .3 * voltage + .7 * old_voltage;
+		old_voltage = voltage;
+							
+		current = (int16_t)(100*get_current()); // in A
+		current = .1 * current + .9 * old_current;
+		old_current = current;
+							
+		temperature = (int16_t)(10*get_temperature());
+		temperature = .5 * temperature + .5 * old_temperature;
+		old_temperature = temperature;
+							
+			
+		nRF_SetRxMode();
+			
 		timeout = 0;
-		
+			
 		start_TMR3();
-		
-		while(!mirf_data_ready())
+			
+		while(!nRF_dataReady()) // RX timeout
 		{
 			if (timeout)
 			{
@@ -203,50 +244,47 @@ int main(void)
 				false_cmd = 1;
 				break;
 			}
-		}
-		
+		} // end of RX timeout
+			
 		stop_TMR3();
-		
-
-		
-		mirf_CE_lo; // enter Stanby_I mode to save current consumption	
-		
-	//	cli();
-		mirf_get_data(buffer); // get the data, put it in buffer	
-		
+			
+		nRF_CLEAR_CE; // enter Stanby_I mode to save current consumption	
+			
+		//	cli();
+		nRF_getData(buffer); // get the data, put it in buffer	
+			
 		for (int i = 0; i < mirf_PAYLOAD; i++)
+		{
 			buffer_cmd[i] = buffer[i];
-	//	sei();
+		}
+		//	sei();
+						
 					
-				
 		// only if communication is successful
-		if (!false_cmd)
+		if (!false_cmd) 
 		{		
-			TOGGLE_LED2;
-		//	nbr_rcv_cmd++;
+			TOGGLE_BLUE_LED;
+			//	nbr_rcv_cmd++;
 			switch (buffer_cmd[0])
 			{			
 				case MTR_CMD :
-		
-					
-					// get signed 16-bit mtr cmd
+			
+					// get unsigned 8-bit mtr cmd
 					mtr_cmd =  buffer[1]; // get LSB
-					mtr_cmd |= (buffer[2]<<8); // get MSB
 					
-					//println_int_0((int16_t)mtr_cmd);
+					// get signed 8-bit srv cmd
+					srv_cmd = buffer[2];
 						
-					// low-pass filter
-					// mtr_cmd = mtr_cmd*alpha + old_mtr_cmd*(1-alpha);
+					//println_int_0(srv_cmd);	
 					
-
-						
-				
 					process_mtr_cmd();
 					
+					move_servo((float)srv_cmd);
+						
 					break;
-					
+						
 				case ANALOG :
-					_delay_ms(1);
+					
 					// data sent as a unsigned 16-bit
 					buffer_analog[0] = current; // LSB
 					buffer_analog[1] = (current>>8);	  // MSB
@@ -254,43 +292,49 @@ int main(void)
 					buffer_analog[3] = (voltage>>8);	  // MSB
 					buffer_analog[4] = temperature;
 					buffer_analog[5] = (temperature>>8);
-					
+						
 					/* MIRF stuff */
-					mirf_send(buffer_analog, mirf_PAYLOAD);
-					
+					nRF_sendData(buffer_analog, mirf_PAYLOAD);
+						
 					max_rt_count = 0;
 					
-					while (!mirf_data_sent())
+					while (!nRF_dataSent())
 					{
-						if (mirf_read_MAX_RT())
+						if (nRF_getMaxRT())
 						{
 							max_rt_count = 1;
 							break;
 						}
 					}
+					
 					if (max_rt_count)
 					{
 						max_rt_count = 0;
-						LED1_ON;
+						ORANGE_LED_ON;
+						_delay_ms(1);
 					}
-					
+						
 					break;
-					
+						
 				default :
 					break;
-			}
-	
- 		}
+			} // end of: switch (buffer_cmd[0])
+		} // end of: if (!false_cmd)
 		else
 		{
 			mtr_cmd = 0;
 			process_mtr_cmd();
- 			false_cmd = 0;
-			 LED1_ON;
-			 _delay_ms(10);
- 		}
-		//_delay_ms(LOOP_DELAY);
-    }
+			false_cmd = 0;
+			RED_LED_ON;
+			_delay_ms(1);
+		}
+			
+		for (int i = 0; i < mirf_PAYLOAD; i++)
+		{
+			buffer[i] = 0;
+		}
+		
+    } // end of: while(1) main loop
 }
 
 
@@ -300,21 +344,36 @@ int main(void)
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_gpios()
 {
-	LED1_DDR |= (1<<LED1_PIN); // set LED gpio as output
-	LED2_DDR |= (1<<LED2_PIN);
-	DDRC |= (1<<4);
+	// set LED pins as output
+	LED_DDR |= (1<<LED_PIN);
+	RED_LED_DDR |= (1<<RED_LED_PIN); 
+	BLUE_LED_DDR |= (1<<BLUE_LED_PIN);
+	ORANGE_LED_DDR |= (1<<ORANGE_LED_PIN);
+	
+	// turn off LEDs initially
+	LED_OFF;	 // misc. LED, toggles every time we go through the main loop
+	RED_LED_OFF; // ON when RX timeout (false_cmd = 1) or TX  timeout (max_rt_count = 1), \
+	turned OFF at every start of the main loop
+	BLUE_LED_OFF; // toggles everytime we successfully receive data (false_cmd == 0)
+	ORANGE_LED_OFF; // ON when TX timeout occurs (max_RT = 1)
+	
 	IN1_DDR |= (1<<IN1);
 	IN2_DDR |= (1<<IN2);
 	EN1_DDR |= (1<<EN1);
 	EN2_DDR |= (1<<EN2);
 	
+	SERVO_PWM_DDR |= (1<<SERVO_PWM_PIN);	
+	
+	move_servo(0);
+	
+	motor_off();
 	
 }
 void flash_LED(uint8_t count, uint16_t ms)
 {
 	for (uint8_t i = 0; i < count; i++)
 	{
-		TOGGLE_LED2;
+		TOGGLE_LED;
 		delay_ms(ms);
 	}
 }
@@ -340,7 +399,7 @@ void setup_TMR1_pwm()
 void set_TMR1A_duty_cycle(int duty_cycle)
 {
 	//duty_cycle = .256 * duty_cycle - 1;
-	
+	// duty cycle from 0 to 255
 	if (duty_cycle > 175)
 		duty_cycle = 175;
 /*	println_int_0(duty_cycle);*/
@@ -382,8 +441,13 @@ void motor_on()
 }
 void process_mtr_cmd()
 {
-	if (abs(mtr_cmd) < 1) // deadband (mtr_cmd is from -1000 to 1000)
+	// low-pass filter
+	 mtr_cmd = mtr_cmd*alpha + old_mtr_cmd*(1-alpha);
+	 
+	// dead band
+	if (abs(mtr_cmd) < 1) // deadband (mtr_cmd is from -255 to 255)
 	{
+		mtr_cmd = 0;
 		stop_TMR1A_pwm();
 		stop_TMR1B_pwm();
 		motor_off();
@@ -391,59 +455,56 @@ void process_mtr_cmd()
 	else
 	{
 		motor_on();
-		if (mtr_cmd > 0 ) // forward direction
+	}
+	
+	if (mtr_cmd > 0 ) // forward direction
+	{
+		// rate limit
+		if (abs(mtr_cmd - old_mtr_cmd) > RATE_LIMIT)
 		{
-			// rate limit
-			if (abs(mtr_cmd - old_mtr_cmd) > RATE_LIMIT_THRESHOLD)
+			if (mtr_cmd > old_mtr_cmd)
 			{
-				if (mtr_cmd > old_mtr_cmd)
-				{
-					// value is rising away from old value
-					mtr_cmd = old_mtr_cmd + RATE_LIMIT;
-				}
-				else
-				{
-					// value is falling away from old value
-					mtr_cmd = old_mtr_cmd - RATE_LIMIT;
-				}
-			} // if the rate limit is violated
-			if (mtr_cmd > 75 )
-				mtr_cmd = 75;
+				// value is rising away from old value
+				mtr_cmd = old_mtr_cmd + RATE_LIMIT;
+			}
+			else
+			{
+				// value is falling away from old value
+				mtr_cmd = old_mtr_cmd - RATE_LIMIT;
+			}
+		} // if the rate limit is violated
 				
-			old_mtr_cmd = mtr_cmd;
+		old_mtr_cmd = mtr_cmd;
 			
-			stop_TMR1B_pwm();
-			start_TMR1A_pwm();
-			set_TMR1A_duty_cycle(mtr_cmd);
-		}
-		else if (mtr_cmd < 0)  // backward direction
+		
+			
+		stop_TMR1B_pwm();
+		start_TMR1A_pwm();
+		set_TMR1A_duty_cycle(mtr_cmd);
+	}
+	else if (mtr_cmd < 0)  // backward direction
+	{
+		stop_TMR1A_pwm();
+		start_TMR1B_pwm();
+			
+		mtr_cmd *= -1;
+		// rate limit
+		if (abs(mtr_cmd - old_mtr_cmd) > RATE_LIMIT)
 		{
-			if (mtr_cmd < -75)
-				mtr_cmd = -75;
-			stop_TMR1A_pwm();
-			start_TMR1B_pwm();
-			
-			mtr_cmd *= -1;
-			// rate limit
-			if (abs(mtr_cmd - old_mtr_cmd) > RATE_LIMIT_THRESHOLD)
+			if (mtr_cmd > old_mtr_cmd)
 			{
-				if (mtr_cmd > old_mtr_cmd)
-				{
-					// value is rising away from old value
-					mtr_cmd = old_mtr_cmd + RATE_LIMIT;
-				}
-				else
-				{
-					// value is falling away from old value
-					mtr_cmd = old_mtr_cmd - RATE_LIMIT;
-				}
-			} // if the rate limit is violated
-			if (mtr_cmd > 75 )
-			mtr_cmd = 75;
+				// value is rising away from old value
+				mtr_cmd = old_mtr_cmd + RATE_LIMIT;
+			}
+			else
+			{
+				// value is falling away from old value
+				mtr_cmd = old_mtr_cmd - RATE_LIMIT;
+			}
+		} // if the rate limit is violated
 			
-			old_mtr_cmd = mtr_cmd;
-			set_TMR1B_duty_cycle(abs(mtr_cmd));
-		}
+		old_mtr_cmd = mtr_cmd;
+		set_TMR1B_duty_cycle(abs(mtr_cmd));
 	}
 	
 }
@@ -456,7 +517,7 @@ void setup_TMR3()
 {
 	TCCR3A |= (1<<COM3A1) | (1<<COM3A0); // clear OCRA on compare
 	TCCR3B |= (1<<CS32) | (1<<CS30) | (1<<WGM32); // 1024 prescaler, CTC mode
-	OCR3A = 7812; // (7812) 500 ms period
+	OCR3A = 1562; // 100 ms period
 	TIMSK3 |= (1<<OCIE3A); // set interrupt on OCA compare
 	
 	stop_TMR3();
@@ -468,7 +529,6 @@ void start_TMR3()
 }
 void stop_TMR3()
 {
-
 	TIMSK3 &= ~(1<<OCIE3A);
 }
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -488,8 +548,8 @@ float get_voltage()
 	_voltage *= VREF;
 	_voltage /= 1023; 
 	// voltage divider scaling factor
-	_voltage *= 48;
-	_voltage /= 10; 
+	_voltage *= 112.7;
+	_voltage /= 11.6; 
 	
 	return _voltage;
 }
@@ -528,6 +588,33 @@ float get_temperature()
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
 
+
+//&&&&&&&&&&&&&&&&&&& SERVO MOTOR &&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+void setup_TMR0_pwm()
+{
+	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM
+	TCCR0B |=  (1 << CS02) | (1 << CS00); // prescaler of 1024
+	move_servo(0);
+
+}
+void move_servo(float angle)
+{
+	if (angle < -42)
+	{
+		angle = -42;
+	}
+	else if (angle > 45)
+	{
+		angle = 45;
+	}
+	angle = 23 + angle*.0889;
+	OCR0A = (uint8_t)angle;
+}
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&& ISRs &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
@@ -538,12 +625,5 @@ float get_temperature()
 ISR(TIMER3_COMPA_vect)
 {
 	timeout = 1;
-	
-//	LED2_ON;
-	
-//  	voltage = (int16_t)(100*get_voltage()); // in V
-//  
-//  	current = (int16_t)(1000*get_current()); // in A
-//  
-//  	temperature = (int16_t)(10*get_temperature());
+		
 }

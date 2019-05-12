@@ -10,7 +10,7 @@
 
 void print_char_0(char character)
 {
-	usart0_send_char(character);
+	USART0_sendChar(character);
 }
 
 
@@ -20,7 +20,7 @@ void print_0(char char_array[]) // prints to usart
 	{
 		if ( (char_array[i] == NL) || (char_array[i] == EOT) )
 			break;
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 	}
 }
 
@@ -30,10 +30,10 @@ void println_0(char char_array[]) // prints to usart
 	{
 		if( (char_array[i] == NL) || (char_array[i] == EOT) )
 			break;
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 		
 	}
-	usart0_send_char(0x0A); // NL
+	USART0_sendChar(0x0A); // NL
 }
 
 void print_crln_0(char char_array[]) // prints to usart
@@ -42,11 +42,11 @@ void print_crln_0(char char_array[]) // prints to usart
 	{
 		if( (char_array[i] == NL) || (char_array[i] == EOT) )
 		break;
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 		
 	}
-	usart0_send_char(0x0D); // CR
-	usart0_send_char(0x0A); // NL
+	USART0_sendChar(0x0D); // CR
+	USART0_sendChar(0x0A); // NL
 }
 
 void println_1(char char_array[]) // prints to usart
@@ -55,10 +55,10 @@ void println_1(char char_array[]) // prints to usart
 	{
 		if( (char_array[i] == NL) || (char_array[i] == EOT) )
 			break;
-		usart1_send_char(char_array[i]);
+		USART1_sendChar(char_array[i]);
 		
 	}
-	usart1_send_char(0x0A); // NL
+	USART1_sendChar(0x0A); // NL
 }
 
 void print_crln_1(char char_array[]) // prints to usart
@@ -67,11 +67,11 @@ void print_crln_1(char char_array[]) // prints to usart
 	{
 		if( (char_array[i] == NL) || (char_array[i] == EOT) )
 		break;
-		usart1_send_char(char_array[i]);
+		USART1_sendChar(char_array[i]);
 		
 	}
-	usart1_send_char(0x0D); // CR
-	usart1_send_char(0x0A); // NL
+	USART1_sendChar(0x0D); // CR
+	USART1_sendChar(0x0A); // NL
 }
 
 void print_int_0(int number)
@@ -93,7 +93,7 @@ void print_int_0(int number)
 
 	for (int i=0; i<num_digit ; i++)
 	{
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 	}
 }
 
@@ -117,9 +117,9 @@ void println_int_0(int number)
 
 	for (int i=0; i<num_digit ; i++)
 	{
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 	}
-	usart0_send_char(0x0A); // NL
+	USART0_sendChar(0x0A); // NL
 }
 
 void print_long_0(long number)
@@ -140,7 +140,7 @@ void print_long_0(long number)
 
 	for (int i=0; i<num_digit ; i++)
 	{
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 	}
 }
 
@@ -162,9 +162,9 @@ void println_long_0(long number)
 
 	for (int i=0; i<num_digit ; i++)
 	{
-		usart0_send_char(char_array[i]);
+		USART0_sendChar(char_array[i]);
 	}
-	usart0_send_char(0x0A); // NL
+	USART0_sendChar(0x0A); // NL
 }
 
 void print_float_0(float number, unsigned char decimals)
@@ -173,7 +173,7 @@ void print_float_0(float number, unsigned char decimals)
 	dtostrf(number, 1, (decimals+3), str);
 	for (int i=0; i<(decimals) ; i++)
 	{
-		usart0_send_char(str[i]);
+		USART0_sendChar(str[i]);
 	}
 }
 
@@ -183,7 +183,7 @@ void println_float_0(float number, unsigned char decimals)
 	dtostrf(number, 1, (decimals+3), str);
 	for (int i=0; i<(decimals) ; i++)
 	{
-		usart0_send_char(str[i]);
+		USART0_sendChar(str[i]);
 	}
-	usart0_send_char(0x0A); // NL
+	USART0_sendChar(0x0A); // NL
 }

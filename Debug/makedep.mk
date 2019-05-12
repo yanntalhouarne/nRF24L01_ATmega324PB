@@ -6,7 +6,7 @@ adc.c
 
 main.c
 
-mirf.c
+nRF.c
 
 print.c
 

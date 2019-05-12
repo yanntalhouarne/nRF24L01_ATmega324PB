@@ -23,34 +23,34 @@
 #define SS_1 6   // PD6	
 
 // setup
-	void spi0_master_initialize();
-	void spi0_slave_initialize();
+	void SPI0_masterInit();
+	void SPI0_slaveInit();
 	
-	void spi1_master_initialize();
-	void spi1_slave_initialize();
+	void SPI1_masterInit();
+	void SPI1_slaveInit();
 	
 	
 // char (one byte)
-	void spi0_send_char(char data); // send a single char (one byte)
-	void spi1_send_char(char data);
+	void SPI0_sendChar(char data); // send a single char (one byte)
+	void SPI1_sendChar(char data);
 	
-	char spi0_exchange_char(char data); 
-	char spi1_exchange_char(char data); // exchange single char (one byte)
+	char SPI0_exchangeChar(char data); 
+	char SPI1_exchangeChar(char data); // exchange single char (one byte)
 	
 	
 // array of char (multiple bytes)
-	void spi0_send_bytes(char *pdata,char bytes); // send array of char of size "bytes"
-	void spi1_send_bytes(char *pdata,char bytes);
+	void SPI0_sendBytes(char *pdata,char bytes); // send array of char of size "bytes"
+	void SPI1_sendBytes(char *pdata,char bytes);
 	
-	void spi0_exchange_bytes(char *mosi, char *miso, char bytes); // exchange array of char of size "bytes"
-	void spi1_exchange_bytes(char *mosi, char *miso, char bytes);
+	void SPI0_exchangeBytes(char *mosi, char *miso, char bytes); // exchange array of char of size "bytes"
+	void SPI1_exchangeBytes(char *mosi, char *miso, char bytes);
 	
 	
 // int (single int)
-	void spi0_send_int(unsigned int mosi); // send a int value LSB first
-	void spi1_send_int(unsigned int mosi);
+	void SPI0_sendInt(unsigned int mosi); // send a int value LSB first
+	void SPI1_sendInt(unsigned int mosi);
 	
-	unsigned int spi0_exchange_int(unsigned int mosi); // exchange int value
-	unsigned int spi1_exchange_int(unsigned int mosi);
+	unsigned int SPI0_exchangeInt(unsigned int mosi); // exchange int value
+	unsigned int SPI1_exchangeInt(unsigned int mosi);
 
 #endif /* SPI_H_ */
