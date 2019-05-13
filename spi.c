@@ -1,6 +1,6 @@
 #include "spi.h"
 
-void spi0_master_initialize()
+void SPI0_masterInit()
 {
 	DDRB |= (1 << MOSI_0);  // MOSI_0 is output
 	DDRB |= (1 << SCK_0);   // SCK_0 is output
@@ -8,14 +8,14 @@ void spi0_master_initialize()
 	
 	SPCR0 = (1 << SPE) | (1 << MSTR) | (1 << SPR0) | (0 << CPHA); // Enable SPI, Master, set clock rate fck/16, SPI_MODE1, MSB first
 }
-void spi0_slave_initialize()
+void SPI0_slaveInit()
 {
 	DDRB |= (1 << MISO_0);	// MSIO_0 is output
 	
 	SPCR0 = (1 << SPE); // Enable SPI, Slave
 }
 
-void spi1_master_initialize()
+void SPI1_masterInit()
 {
 	DDRE |= (1 << MOSI_1);  // MOSI_1 is output
 	DDRD |= (1 << SCK_1);   // SCK_1 is output
@@ -23,7 +23,7 @@ void spi1_master_initialize()
 	
 	SPCR1 = (1 << SPE) | (1 << MSTR) | (1 << SPR1); // Enable SPI, Master, set clock rate fck/16, SPI_MODE0, MSB first
 }
-void spi1_slave_initialize()
+void SPI1_slaveInit()
 {
 	DDRE |= (1 << MISO_1);	// MSIO_1 is output
 	
@@ -31,20 +31,20 @@ void spi1_slave_initialize()
 }
 
 
-void spi0_send_char(char data)
+void SPI0_sendChar(char data)
 {
 	SPDR0 = data;
 	while (!(SPSR0 & (1 << SPIF)))
 	; // wait for transmission to complete
 }
-void spi1_send_char(char data)
+void SPI1_sendChar(char data)
 {
 	SPDR1 = data;
 	while (!(SPSR1 & (1 << SPIF)))
 	; // wait for transmission to complete
 }
 
-char spi0_exchange_char(char data)
+char SPI0_exchangeChar(char data)
 {
 	SPDR0 = data; // start transmission
 	
@@ -53,7 +53,7 @@ char spi0_exchange_char(char data)
 	
 	return SPDR0;
 }
-char spi1_exchange_char(char data)
+char SPI1_exchangeChar(char data)
 {
 	SPDR1 = data; // start transmission
 	
@@ -63,7 +63,7 @@ char spi1_exchange_char(char data)
 	return SPDR1;
 }
 
-void spi0_send_bytes(char *pdata, char bytes)
+void SPI0_sendBytes(char *pdata, char bytes)
 {
 	int i;
 
@@ -74,7 +74,7 @@ void spi0_send_bytes(char *pdata, char bytes)
 		; // wait for transmission complete
 	}
 }
-void spi1_send_bytes(char *pdata, char bytes)
+void SPI1_sendBytes(char *pdata, char bytes)
 {
 	int i;
 
@@ -86,7 +86,7 @@ void spi1_send_bytes(char *pdata, char bytes)
 	}
 }
 
-void spi0_exchange_bytes(char *mosi, char *miso, char bytes)
+void SPI0_exchangeBytes(char *mosi, char *miso, char bytes)
 {
 	int i;
 
@@ -99,7 +99,7 @@ void spi0_exchange_bytes(char *mosi, char *miso, char bytes)
 		miso[i] = SPDR0;
 	}
 }
-void spi1_exchange_bytes(char *mosi, char *miso, char bytes)
+void SPI1_exchangeBytes(char *mosi, char *miso, char bytes)
 {
 	int i;
 
@@ -113,7 +113,7 @@ void spi1_exchange_bytes(char *mosi, char *miso, char bytes)
 	}
 }
 
-unsigned int spi0_exchange_int(unsigned int mosi) // not tested
+unsigned int SPI0_exchangeInt(unsigned int mosi) // not tested
 {
 	unsigned int miso = 0;
 	
@@ -132,7 +132,7 @@ unsigned int spi0_exchange_int(unsigned int mosi) // not tested
 
 	return miso;
 }
-unsigned int spi1_exchange_int(unsigned int mosi) // not tested
+unsigned int SPI1_exchangeInt(unsigned int mosi) // not tested
 {
 	unsigned int miso = 0;
 	
@@ -152,7 +152,7 @@ unsigned int spi1_exchange_int(unsigned int mosi) // not tested
 	return miso;
 }
 
-void spi0_send_int(unsigned int mosi) // not tested
+void SPI0_sendInt(unsigned int mosi) // not tested
 {
 	while (!(SPSR0 & (1 << SPIF)));
 	SPDR0 = (char)(mosi >> 8); // start transmission by sending MSB of MOSI
@@ -160,7 +160,7 @@ void spi0_send_int(unsigned int mosi) // not tested
 	while (!(SPSR0 & (1 << SPIF)));
 	SPDR0 = (char)mosi; // send LSB of MOSI
 }
-void spi1_send_int(unsigned int mosi) // not tested
+void SPI1_sendInt(unsigned int mosi) // not tested
 {
 	while (!(SPSR1 & (1 << SPIF)));
 	SPDR1 = (char)(mosi >> 8); // start transmission by sending MSB of MOSI

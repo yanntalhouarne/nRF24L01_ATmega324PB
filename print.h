@@ -26,6 +26,7 @@ void println_int_0(int number);
 void println_long_0(long number);
 void print_long_0(long number);
 void println_long_0(long number);
-void println_decimal_0(double number, unsigned char decimals);
+void print_float_0(float number, unsigned char decimals);
+void println_float_0(float number, unsigned char decimals);
 
 #endif /* PRINT_H_ */

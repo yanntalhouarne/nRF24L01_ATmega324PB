@@ -5,7 +5,7 @@
  *  Author: talho_000
  */
 
-#define F_CPU 8000000
+#define F_CPU 16000000
 
 #include <avr/io.h>
 
@@ -26,6 +26,7 @@
 #define AN8 8
 
 #define ADC_SCALING 10.23 // converts to 0 to 100
+#define ADC_VOLTAGE_SCALING 
 
 void setup_adc();
 int analog_read(unsigned char channel);

@@ -1,362 +1,357 @@
  
-#define F_CPU 8000000
-#define LOOP_DELAY 5
-
-//#define DIRECT_JOYSTICK
-#define GPS_ON
+#define F_CPU 16000000
 
 #include <avr/io.h>
 #include <util/delay.h>
 #include <avr/interrupt.h>
+#include <stdlib.h>
+#include <math.h>
 
-
-
-#ifdef GPS_ON
 #include "usart.h"
-#include "print.h"
-#endif
-
-#ifndef DIRECT_JOYSTICK
-#include "spi.h"
-#include "mirf.h"
-#endif
-
 #include "adc.h"
+#include "print.h"
+#include "spi.h"
+#include "nRF.h" 
+
+
+
 
 
  //&&&&&&&&&&&&&&&&& MACROS &&&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
  
- /* joystick reading and scaling */
- #define CMD_SCALE 1
- #define NEUTRAL_CMD 500
- #define DEADBAND_MIN 460
- #define DEADBAND_MAX 540
- #define OFFSET 0
+ /*&&& Main loop delay ****/
+		#define LOOP_DELAY 10
+		
  
-/* thermistor */
-#define SERIESRESISTOR 10000 // for temp sensor
-#define THERMISTORNOMINAL 10000  // resistance at 25C
-#define BCOEFFICIENT 3400 // beta coeff. of thermistor
-#define TEMPERATURENOMINAL 25
-#define TEMP_PIN 0 // AN0
-#define CURRENT_PIN 1 // AN1
-/* LED */
-#define LED_DDR DDRE
-#define LED_PORT PORTE
-#define LED_PIN 4
-#define LED_ON LED_PORT |= (1<<LED_PIN);
-#define LED_OFF LED_PORT &= ~(1<<LED_PIN);
-#define TOGGLE_LED LED_PORT ^= (1<<LED_PIN);
-/* IN1 */
-#define IN1 5
-#define IN1_DDR DDRD
-#define IN1_PORT PORTD
-#define IN1_PIN 5
-/* IN2 */
-#define IN2 4
-#define IN2_DDR DDRD
-#define IN2_PORT PORTD
-#define IN2_PIN PIND
-/* ENA */
-#define EN1_PORT PORTB
-#define EN1_DDR DDRB
-#define EN1 1
-/* ENB */ 
-#define EN2_PORT PORTB
-#define EN2_DDR DDRB
-#define EN2 2
-/* servo PWM PIN */
-#define SERVO_PWM_DDR DDRB
-#define SERVO_PWM 3  // PB3
-/* nRF24L01 */
-#define BUFFER_SIZE 3
-#define GET_TEMP 'T'
-#define GET_LAT 'A'
-#define GET_LON 'O'
-#define GPSOFF 'N'
-#define GPSON 'Y'
+/*&&& LEDs &&&*/
+	/* Blue LED on main board */
+		#define LED_DDR    DDRC
+		#define LED_PORT   PORTC
+		#define LED_PIN    0
+		#define LED_ON     LED_PORT  |= (1<<LED_PIN);
+		#define LED_OFF    LED_PORT &= ~(1<<LED_PIN);
+		#define TOGGLE_LED LED_PORT  ^= (1<<LED_PIN);
+	/* Blue LED on top board */
+		#define BLUE_LED_DDR    DDRC
+		#define BLUE_LED_PORT 	PORTC
+		#define BLUE_LED_PIN 		3
+		#define BLUE_LED_ON 		BLUE_LED_PORT  |= (1<<BLUE_LED_PIN);
+		#define BLUE_LED_OFF 		BLUE_LED_PORT &= ~(1<<BLUE_LED_PIN);
+		#define TOGGLE_BLUE_LED BLUE_LED_PORT  ^= (1<<BLUE_LED_PIN);
+	/* Red LED on top board */
+		#define RED_LED_DDR    DDRC
+		#define RED_LED_PORT   PORTC
+		#define RED_LED_PIN    1
+		#define RED_LED_ON     RED_LED_PORT  |= (1<<RED_LED_PIN);
+		#define RED_LED_OFF    RED_LED_PORT &= ~(1<<RED_LED_PIN);
+		#define TOGGLE_RED_LED RED_LED_PORT  ^= (1<<RED_LED_PIN);
+	/* Orange LED on top board */
+		#define ORANGE_LED_DDR    DDRC
+		#define ORANGE_LED_PORT   PORTC
+		#define ORANGE_LED_PIN    5
+		#define ORANGE_LED_ON     ORANGE_LED_PORT  |= (1<<ORANGE_LED_PIN);
+		#define ORANGE_LED_OFF    ORANGE_LED_PORT &= ~(1<<ORANGE_LED_PIN);
+		#define TOGGLE_ORANGE_LED ORANGE_LED_PORT  ^= (1<<ORANGE_LED_PIN);
+
+/*&&& DC motor &&&*/
+	/* IN1 */
+		#define IN1 		 5
+		#define IN1_DDR  DDRD
+		#define IN1_PORT PORTD
+		#define IN1_PIN  5
+	/* IN2 */
+		#define IN2			 4
+		#define IN2_DDR  DDRD
+		#define IN2_PORT PORTD
+		#define IN2_PIN  PIND
+	/* ENA */
+		#define EN1_PORT PORTB
+		#define EN1_DDR  DDRB
+		#define EN1 	   1
+	/* ENB */
+		#define EN2_PORT PORTB
+		#define EN2_DDR  DDRB
+		#define EN2      2
+	/* RATE LIMIT */
+		#define RATE_LIMIT_THRESHOLD 25
+		#define RATE_LIMIT 10
+		
+/*&&& Motor command macros &&&*/
+		#define MTR_CMD 				  0
+		#define ANALOG 					  1
+
+/*&&& ADC macros &&&*/
+		#define VREF 						 	 5.08
+		#define CURRENT_SENSOR     0
+		#define VOLTAGE_SENSOR     1
+		#define TEMP_SENSOR        2
+		#define SERIESRESISTOR     10000 
+		#define THERMISTORNOMINAL  10000
+		#define TEMPERATURENOMINAL 25
+		#define BCOEFFICIENT 		   4250
+		
+/*&&& Servo macros &&&*/
+		#define SERVO_PWM_DDR DDRB
+		#define SERVO_PWM_PIN 3  // PB3
+		
+/*&&& nRF24L01 macros &&&*/
+		#define ACK_PAYLOAD_LENGTH 6
+		#define TX_PAYLOAD_LENGTH 3
 
 
 
- //&&&&&&&&&&&& FUNCTION PROTOTYPES &&&&&&&&&&&&&&
+ //&&&&&&&&&&&&& Function protorypes &&&&&&&&&&&&&&
+ //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+ 
+/*&&& DC motor functions &&&*/
+		void setup_TMR1_pwm();
+		void start_TMR1A_pwm();
+		void start_TMR1B_pwm();
+		void stop_TMR1A_pwm();
+		void stop_TMR1B_pwm();
+		void motor_off();
+		void motor_on();
+		void set_TMR1A_duty_cycle(int duty_cycle);
+		void set_TMR1B_duty_cycle(int duty_cycle);
+		void process_mtr_cmd();
+		
+/*&&& Servo functions &&&*/		
+		void setup_TMR0_pwm();
+		void move_servo(float angle);
+		
+/*&&& TMR3 for communication timeout &&&*/
+		void setup_TMR3();
+		void start_TMR3();
+		void stop_TMR3();
+	
+/*&&& Analog reading functions &&&*/
+		float get_voltage();
+		float get_current();
+		float get_temperature();
+
+	/*&&& Misc &&&*/
+		 void setup_gpios();
+		 void flash_LED(uint8_t count, uint16_t ms);
+		 void delay_ms(uint16_t ms);
+
+ //&&&&&&&&&&&&&&&&& GLOBALS &&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
- /* DC motor */
-void setup_TMR1_pwm();
-void stop_TMR1_pwm();
-void start_TMR1A_pwm();
-void start_TMR1B_pwm();
-void stop_TMR1A_pwm();
-void stop_TMR1B_pwm();
-void motor_off();
-void motor_on();
-void set_TMR1A_duty_cycle(int duty_cycle);
-void set_TMR1B_duty_cycle(int duty_cycle);
-/* Communication time-out */
-void setup_TMR3();
-void reset_TMR3();
-#ifdef GPS_ON
-/* GPS parsing */
-void parse_GPMRC();
-#endif
-/* Emergency stop */
-void estop();
-/* Servo */
-void setup_TMR0_pwm();
-//void setup_TMR4_pwm();
-//void move_servo_4(float angle);
-void move_servo(float angle);
-/* current sensor */
-int16_t current_scaling(float raw_value);
-int16_t get_current();
-/* temp sensor */
-int16_t temp_scaling(float raw_value);
-int16_t get_temp();
-/* miscellaneous */
-void setup_gpios();
-void flash_LED(uint8_t count, uint16_t ms);
-void delay_ms(uint16_t ms);
-#ifdef DIRECT_JOYSTICK
-	/* direct joystick input */
-	int js_mtr_scaling(int value);
-	int js_srv_scaling(float value);
-#endif
+ 
+/*&&& nRF24L01 data buffers &&&*/
+	char buffer[TX_PAYLOAD_LENGTH] = {0,0,0}; // for the nRF24L01 receive and transmit data
+	char buffer_analog[ACK_PAYLOAD_LENGTH] = {0,0,0,0,0,0};
+	char rx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
+	//char tx_address[5] = {0xAA,0xAA,0xAA,0xAA,0xAA};	
+	
+/*&&& motor command &&&*/
+	volatile int16_t mtr_cmd = 0;	
+	volatile int16_t old_mtr_cmd = 0;
+	volatile uint16_t unsigned_motor_cmd = 1000;
+	float alpha = 0.7;
+	
+/*&&& servo command &&&*/	
+	int8_t srv_cmd = 0;
+	
+/*&&& communication status &&&*/
+	volatile uint16_t max_rt_count = 0;
+	volatile uint16_t transmission_count = 0;
+	volatile float signal_strength = 0;
 
+/*&&& TMR1 flag &&&*/
+	volatile uint8_t TMR1_flag = 0;
+	
+/*&&& communication timeout variables &&&*/
+	volatile uint8_t timeout = 0;
+	volatile int8_t false_cmd = 0;
+	uint8_t nbr_rcv_cmd = 0;
+	
+/*&&& ADC variables &&&*/
+	volatile int16_t current = 0;
+	volatile int16_t old_current = 0;
+	volatile int16_t voltage = 0;
+	volatile int16_t old_voltage = 0;
+	volatile int16_t temperature = 0;
+	volatile int16_t old_temperature = 0;
+	
 
-
- //&&&&&&&&&&&&&&&&& GLOABLS &&&&&&&&&&&&&&&&&&&&&
+	
+	
+	
+ //&&&&&&&&&&&&&&&&& MAIN &&&&&&&&&&&&&&&&&&&&&&&&
  //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
- /* nRF24L01 variables */
-int8_t buffer[mirf_PAYLOAD] = {0,0,0}; // for the nRF24L01 receive and transmit data
-int8_t tx_address[5] = {0xD7,0xD7,0xD7,0xD7,0xD7};
-int8_t rx_address[5] = {0xE7,0xE7,0xE7,0xE7,0xE7};
-/* motor command variables */
-int16_t mtr_cmd = 0; 
-int16_t  old_mtr_cmd = 0;
-/* servo command variables */
-int16_t srv_cmd = 0;
-int8_t old_srv_cmd = 0;
-/* temperature */
-int8_t temperature = 23;
-/* communication status */
-uint8_t comm_lost = 0;
-uint8_t comm_lost_count = 0;
-#ifdef GPS_ON
-/* GPS variables */
-volatile uint8_t k_RX = 0;
-volatile uint8_t HEADER = 0;
-volatile uint8_t GPRMC_SENTENCE = 0;
-volatile uint8_t lat_buf[8];
-volatile uint8_t lon_buf[8];
-volatile uint8_t gps_string_ready = 0; // flag set when RX1 interrupt has received a full GPS sentence
-uint8_t lat_deg = 0;
-uint8_t lat_min = 0;
-uint8_t lat_sec = 0;
-uint8_t lon_deg = 0;
-uint8_t lon_min = 0;
-uint8_t lon_sec = 0;
-#endif
-
-
-
-
-
-
 int main(void)
 {
+	/* setup pins */
 	setup_gpios(); 
-	#ifdef GPS_ON
+	
 	/* USART setup */
-	setup_usart0(BR_9600); // for NEO6 GPS
-	#endif
+	USART0_setup(BR_38400); // for NEO6 GPS
 	
 	/* nRF24L01 setup */
-	#ifndef DIRECT_JOYSTICK
-	spi1_master_initialize(); // setup device as master for SPI com with nRF24L01
-	mirf_init(); // initialize nRF24L01
-	mirf_config(); // configure nRF24L01
-	mirf_set_TADDR(tx_address);
-	mirf_set_RADDR(rx_address);
-	#endif
+	SPI1_masterInit();  // setup device as master for SPI com with nRF24L01
+	nRF_init(); 							 // initialize nRF24L01
+	nRF_config(); 						 // configure nRF24L01
+	nRF_RXsetAddr(rx_address);
+	//nRF_TXsetAddr(tx_address);
 	
+	/* setup TMR3 for communication timeout */
+	setup_TMR3();
+	stop_TMR3();
+
 	/* ADC for current and temperature sensor (and joystick indirect joystick mode) */
 	setup_adc();
-	
-	/* Timers setup */
+
+	/* DC motor setup */
 	setup_TMR1_pwm(); // setup TMR1 PWM for DC motor
-	setup_TMR0_pwm(); // setup TMR0 PWM for servo
-	//setup_TMR4_pwm(); // setup TMR0 PWM for servo
-	setup_TMR3(); // for communication timeout with controller
+	motor_off();
+	
+	/* Servo motor setup */
+	setup_TMR0_pwm();
 	
 	sei(); // enable global interrupts
 	
 	/* setup complete notification */
 	flash_LED(10, 50); // flash LED 10 times at intervals of 50ms
-	_delay_ms(1000);
-	
-
+	println_0("System initialized...;");
 	_delay_ms(10);
-
-    while (1) 
-    {
-		TOGGLE_LED;
-		#ifndef DIRECT_JOYSTICK
-		if (comm_lost_count > 50)
+	
+	
+    while (1) // main loop
+    {	
+		/* enter RX mode */
+		nRF_SetRxMode();
+				
+		TOGGLE_LED; // main loop LED
+		ORANGE_LED_OFF; // unused 
+		
+		/* read battery voltage */
+		voltage = (int16_t)(100*get_voltage()); // in V
+		voltage = .3 * voltage + .7 * old_voltage;
+		old_voltage = voltage;
+		
+		/* read current */	
+		current = (int16_t)(100*get_current()); // in A
+		current = .1 * current + .9 * old_current;
+		old_current = current;
+		
+		/* read temperature */					
+		temperature = (int16_t)(10*get_temperature());
+		temperature = .5 * temperature + .5 * old_temperature;
+		old_temperature = temperature;
+		
+		/* load analog data into buffer */
+		buffer_analog[0] = current; // LSB
+		buffer_analog[1] = (current>>8);	  // MSB
+		buffer_analog[2] = voltage; // LSB
+		buffer_analog[3] = (voltage>>8);	  // MSB
+		buffer_analog[4] = temperature;
+		buffer_analog[5] = (temperature>>8);
+		
+		/* write analog data to ACK payload */
+		nRF24_uploadACKpay(ACK_PAYLOAD_P0, buffer_analog, ACK_PAYLOAD_LENGTH);
+				
+		/* wait for incoming data with a timeout of 1s */
+// 		timeout = 0;	
+// 		start_TMR3();
+		while(!nRF_dataReady()) // RX timeout
 		{
-			comm_lost_count = 0;
-			mirf_config();
-		}
-
-		reset_TMR3();
-		while(!mirf_data_ready())  // wait to receive command from controller
-		{
-			if (TCNT3 > 1500) // timeout of one second
+			if (timeout)
 			{
-				estop();
-				comm_lost_count++;
-				comm_lost = 1;
+				timeout = 0;
+				false_cmd = 1;
 				break;
 			}
-		}
-		#endif
+		} // end of RX timeout
+		//stop_TMR3();
 		
-		if (comm_lost == 0) // if data has been received (will be 0 by default so in direct joystick mode, we will always enter this if statement
+		/* enter Stanby_I mode to save current consumption */	
+		nRF_CLEAR_CE; 
+		
+		/* read RX data */
+		nRF_getData(buffer, TX_PAYLOAD_LENGTH); // get the data, put it in buffer	
+		
+		if (!false_cmd)
 		{
-			#ifndef DIRECT_JOYSTICK
-			mirf_get_data(buffer); // get the data, put it in buffer
+			TOGGLE_BLUE_LED;
 			
-			if (buffer[0] == GPSOFF) // if the command is latitude request
-			{
-				stop_RX0_interrupt();		
-			}
-			else if (buffer[0] == GPSON)
-			{
-				start_RX0_interrupt();	
-			}
-			else if (buffer[0] == GET_LAT) // if the command is latitude request
-			{
-				buffer[0] = lat_deg;
-				buffer[1] = lat_min;
-				buffer[2] = lat_sec;
-				reset_TMR3();
-				mirf_send(buffer, mirf_PAYLOAD);
-				while (!mirf_data_sent())
-				{
-					if (TCNT3 > 1500) // timeout of one second
-					{
-						comm_lost_count++;
-						comm_lost = 1;
-						break;
-					}
-				}
-				
-				set_RX_MODE(); // listen for new data
-				
-			}
-			else if (buffer[0] == GET_LON) // if the command is longitude request
-			{
-				buffer[0] = lon_deg;
-				buffer[1] = lon_min;
-				buffer[2] = lon_sec;
-				reset_TMR3();
-				mirf_send(buffer, mirf_PAYLOAD);
-				while (!mirf_data_sent())
-				{
-					if (TCNT3 > 1500) // timeout of one second
-					{
-						comm_lost_count++;
-						comm_lost = 1;
-						break;
-					}
-				}
-				
-				lat_deg = 0;
-				lat_min = 0;
-				lat_sec = 0;
-				lon_deg = 0;
-				lon_min = 0;
-				lon_sec = 0;		
-				
-				set_RX_MODE(); // listen for new data
-				
-			}
-			else // otherwise, the command is for motor control (default command)
-			{
-				mtr_cmd = ((0xFF00)&(buffer[0]<<8)) | ((0x00FF)&(buffer[1])); // get the motor duty cycle
-				srv_cmd = buffer[2];
-			#endif		
-						
-			#ifdef DIRECT_JOYSTICK
-			mtr_cmd = analog_read(1);
-			mtr_cmd = js_mtr_scaling(mtr_cmd);
-			mtr_cmd = 0.25*mtr_cmd + .75*old_mtr_cmd;
-			old_mtr_cmd = mtr_cmd;
+			// get unsigned 8-bit mtr cmd
+			mtr_cmd =  buffer[1]; // get LSB
 			
-			srv_cmd = analog_read(2);
-			srv_cmd = js_srv_scaling(srv_cmd);
- 			if ((srv_cmd < 5) && (srv_cmd > -5))
- 			srv_cmd = 0;
-			#endif
+			// get signed 8-bit srv cmd
+			srv_cmd = buffer[2];
 			
-			/* scaling and deadband */
-			 if (srv_cmd > 20)
-				srv_cmd = 20;
-			else if (srv_cmd < -20)
-				srv_cmd = -20;
-			srv_cmd = 0.25*srv_cmd + .75*old_srv_cmd;
-			old_srv_cmd = srv_cmd;
-			
-			if (abs(mtr_cmd) < 100) // deadband (mtr_cmd is from -1000 to 1000)
-			{
-				stop_TMR1A_pwm();
-				stop_TMR1B_pwm();
-				motor_off();
-			}
-			else  
-			{
-				motor_on();
-				if (mtr_cmd > 0 ) // forward direction
-				{
-					stop_TMR1B_pwm();
-					start_TMR1A_pwm();
-					set_TMR1A_duty_cycle(mtr_cmd);
-				}
-				else if (mtr_cmd < 0)  // backward direction
-				{
-					stop_TMR1A_pwm();
-					start_TMR1B_pwm();
-					set_TMR1B_duty_cycle(abs(mtr_cmd));
-				}
-			}
+			process_mtr_cmd();
 			
 			move_servo((float)srv_cmd);
-		//	move_servo_4((float)srv_cmd);
-			#ifndef DIRECT_JOYSTICK
-			}
-			#endif
- 		}
-		#ifndef DIRECT_JOYSTICK
- 		else
- 			comm_lost = 0;
-		#endif
-		
-		#ifdef GPS_ON	 
-		if (gps_string_ready) // if a full gps sentence has been received, parse it
+		} // end of: if (!false_cmd)
+		else
 		{
-			gps_string_ready = 0;
- 			cli();
- 				parse_GPMRC(); // parse GPS string received by UASRT1 RX interrupt
-			sei();
+			TOGGLE_RED_LED;
+			mtr_cmd = 0;
+			process_mtr_cmd();
+			false_cmd = 0;
+			_delay_ms(1);
 		}
-		#endif
 		
-		print_char_0(NL);
+// 		/* clear RX buffer */
+// 		for (int i = 0; i < TX_PAYLOAD_LENGTH; i++)
+// 		{
+// 			buffer[i] = 0;
+// 		}
 		
-		_delay_ms(LOOP_DELAY);
+    } // end of: while(1) main loop
+}
+
+
+
+
+//&&&&&&&&&&&&&&&&&&&&&& FUNCTIONS &&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+void setup_gpios()
+{
+	// set LED pins as output
+	LED_DDR |= (1<<LED_PIN);
+	RED_LED_DDR |= (1<<RED_LED_PIN); 
+	BLUE_LED_DDR |= (1<<BLUE_LED_PIN);
+	ORANGE_LED_DDR |= (1<<ORANGE_LED_PIN);
 	
-    }
+	// turn off LEDs initially
+	LED_OFF;	 // misc. LED, toggles every time we go through the main loop
+	RED_LED_OFF; // ON when RX timeout (false_cmd = 1) or TX  timeout (max_rt_count = 1), \
+	turned OFF at every start of the main loop
+	BLUE_LED_OFF; // toggles everytime we successfully receive data (false_cmd == 0)
+	ORANGE_LED_OFF; // ON when TX timeout occurs (max_RT = 1)
+	
+	IN1_DDR |= (1<<IN1);
+	IN2_DDR |= (1<<IN2);
+	EN1_DDR |= (1<<EN1);
+	EN2_DDR |= (1<<EN2);
+	
+	SERVO_PWM_DDR |= (1<<SERVO_PWM_PIN);	
+	
+	move_servo(0);
+	
+	motor_off();
 	
 }
+void flash_LED(uint8_t count, uint16_t ms)
+{
+	for (uint8_t i = 0; i < count; i++)
+	{
+		TOGGLE_LED;
+		delay_ms(ms);
+	}
+}
+void delay_ms(uint16_t ms)
+{
+	for (uint16_t i  = 0; i < ms; i++)
+	{
+		_delay_ms(1);
+	}
+}
+
+
 
 
 
@@ -365,20 +360,23 @@ int main(void)
 void setup_TMR1_pwm()
 {
 	TCCR1A |= (1 << WGM10) ; // fast PWM
-	TCCR1B |= (1 << WGM12) | (1<<CS10); // no prescaler with f_osc (so 62.5KHz PWM)
+	TCCR1B |= (1 << WGM12) | (1<<CS11); //  prescaler of 8 with f_osc (so 7.82KHz PWM)
 }
 void set_TMR1A_duty_cycle(int duty_cycle)
 {
-	duty_cycle = .256 * duty_cycle - 1;
-	if (duty_cycle > 200)
-	duty_cycle = 200;
+	//duty_cycle = .256 * duty_cycle - 1;
+	// duty cycle from 0 to 255
+	if (duty_cycle > 175)
+		duty_cycle = 175;
+/*	println_int_0(duty_cycle);*/
 	OCR1A = (char)((0x00FF) & duty_cycle);
 }
 void set_TMR1B_duty_cycle(int duty_cycle)
 {
-	duty_cycle = .256 * duty_cycle - 1;
-	if (duty_cycle > 200)
-	duty_cycle = 200;
+	//duty_cycle = .256 * duty_cycle - 1;
+	if (duty_cycle > 175)
+	duty_cycle = 175;
+		//println_int_0(duty_cycle);
 	OCR1B = (char)((0x00FF) & duty_cycle);
 }
 void stop_TMR1A_pwm()
@@ -407,277 +405,191 @@ void motor_on()
 	EN1_PORT |= (1<<EN1);
 	EN2_PORT |= (1<<EN2);
 }
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+void process_mtr_cmd()
+{
+	// low-pass filter
+	 mtr_cmd = mtr_cmd*alpha + old_mtr_cmd*(1-alpha);
+	 
+	// dead band
+	if (abs(mtr_cmd) < 1) // deadband (mtr_cmd is from -255 to 255)
+	{
+		mtr_cmd = 0;
+		stop_TMR1A_pwm();
+		stop_TMR1B_pwm();
+		motor_off();
+	}
+	else
+	{
+		motor_on();
+	}
+	
+	if (mtr_cmd > 0 ) // forward direction
+	{
+		// rate limit
+		if (abs(mtr_cmd - old_mtr_cmd) > RATE_LIMIT)
+		{
+			if (mtr_cmd > old_mtr_cmd)
+			{
+				// value is rising away from old value
+				mtr_cmd = old_mtr_cmd + RATE_LIMIT;
+			}
+			else
+			{
+				// value is falling away from old value
+				mtr_cmd = old_mtr_cmd - RATE_LIMIT;
+			}
+		} // if the rate limit is violated
+				
+		old_mtr_cmd = mtr_cmd;
+			
+		
+			
+		stop_TMR1B_pwm();
+		start_TMR1A_pwm();
+		set_TMR1A_duty_cycle(mtr_cmd);
+	}
+	else if (mtr_cmd < 0)  // backward direction
+	{
+		stop_TMR1A_pwm();
+		start_TMR1B_pwm();
+			
+		mtr_cmd *= -1;
+		// rate limit
+		if (abs(mtr_cmd - old_mtr_cmd) > RATE_LIMIT)
+		{
+			if (mtr_cmd > old_mtr_cmd)
+			{
+				// value is rising away from old value
+				mtr_cmd = old_mtr_cmd + RATE_LIMIT;
+			}
+			else
+			{
+				// value is falling away from old value
+				mtr_cmd = old_mtr_cmd - RATE_LIMIT;
+			}
+		} // if the rate limit is violated
+			
+		old_mtr_cmd = mtr_cmd;
+		set_TMR1B_duty_cycle(abs(mtr_cmd));
+	}
+	
+}
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+//&&&&&&&&&&&&&& TMR3 for communication timeout &&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+void setup_TMR3()
+{
+	TCCR3A |= (1<<COM3A1) | (1<<COM3A0); // clear OCRA on compare
+	TCCR3B |= (1<<CS32) | (1<<CS30) | (1<<WGM32); // 1024 prescaler, CTC mode
+	OCR3A = 15620; // 1s period
+	TIMSK3 |= (1<<OCIE3A); // set interrupt on OCA compare
+	
+	stop_TMR3();
+}
+void start_TMR3()
+{
+	TCNT3 = 0;
+	TIMSK3 |= (1<<OCIE3A); // set interrupt on OCA compare
+}
+void stop_TMR3()
+{
+	TIMSK3 &= ~(1<<OCIE3A);
+}
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+//&&&&&&&&&&&&&& Analog reading functions &&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+float get_voltage()
+{
+	float _voltage = 0;
+	// get analog reading
+	_voltage = analog_get_average(VOLTAGE_SENSOR, 1);
+	// convert to volts
+	_voltage *= VREF;
+	_voltage /= 1023; 
+	// voltage divider scaling factor
+	_voltage *= 112.7;
+	_voltage /= 11.6; 
+	
+	return _voltage;
+}
+float get_current()
+{
+	float _current = 0;
+	// get analog reading
+	_current = analog_get_average(CURRENT_SENSOR, 1);
+	// convert to mV
+	_current *= VREF*1000;
+	_current /=  1023; 
+	_current -= 444; // 0A offset
+	_current /= 400; // 400mV per 1A
+	if (_current < 0)
+		_current = 0; // cannot be negative
+		
+	return _current;	
+}
+float get_temperature()
+{
+	float _temperature = 0;
+	
+	_temperature = analog_get_average(TEMP_SENSOR, 1);
+	_temperature = 1023 / _temperature - 1;
+	_temperature = SERIESRESISTOR / _temperature;
+	_temperature = _temperature / THERMISTORNOMINAL;     // (R/Ro)
+	_temperature = log(_temperature);                  // ln(R/Ro)
+	_temperature /= BCOEFFICIENT;                   // 1/B * ln(R/Ro)
+	_temperature += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
+	_temperature = 1.0 / _temperature;                 // Invert
+	_temperature -= 273.15;                         // convert to C
+	
+	return _temperature;
+}
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+
 
 //&&&&&&&&&&&&&&&&&&& SERVO MOTOR &&&&&&&&&&&&&&&&&&&&&&&&&
 //&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 void setup_TMR0_pwm()
-{ 
+{
 	TCCR0A |= (1 << COM0A1) | (1 << WGM01) | (1 << WGM00); // fast PWM
 	TCCR0B |=  (1 << CS02) | (1 << CS00); // prescaler of 1024
 	move_servo(0);
 
 }
 void move_servo(float angle)
-{ 
-	angle = 11 + angle*.0889;
+{
+	if (angle < -42)
+	{
+		angle = -42;
+	}
+	else if (angle > 45)
+	{
+		angle = 45;
+	}
+	angle = 23 + angle*.0889;
 	OCR0A = (uint8_t)angle;
 }
-// void setup_TMR4_pwm()
-// {
-// 	TCCR4A |= (1 << WGM41); // fast PWM, top on ICR4
-// 	TCCR4B |= (1 << WGM43) | (1 << WGM42) | (1<<CS41); // 256 prescaler
-// 	ICR4 = 19999; // 20ms period
-// 	OCR4A = 1499;
-// }
-// void move_servo_4(float angle)
-// { 
-// 	angle = 1499 + (100/9)*angle;
-// 	OCR4A = (uint8_t)angle;
-// }
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-//&&&&&&&&&&&&&&&&&& CURRENT SENSE &&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-int current_scaling(float raw_value)
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&& ISRs &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+//&&&&&&&&&&&&&&&&&&&&&& TMR3 ISR &&&&&&&&&&&&&&&&&&&&&&&&&&&
+//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
+
+ISR(TIMER3_COMPA_vect)
 {
-		float  value = 0;
-		value = raw_value / 204.6; // get voltage
- 		//value -= 2.5; // get rid of offset
- 		//value *= 1000; // scale to current
+	timeout = 1;
 		
-		return value;
 }
-int get_current()
-{
-	int current = 0;
-	current = analog_get_average(CURRENT_PIN,5);
-	current = current_scaling(current);
-	
-	return current;
-}
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-
-//&&&&&&&&&&&&&&&&&& TEMPERATURE SENSE &&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-int temp_scaling(float raw_value)
-{
-	float steinhart;
-	raw_value = 1023 / raw_value - 1;
-	raw_value = SERIESRESISTOR / raw_value;
-
-	steinhart = raw_value / THERMISTORNOMINAL;     // (R/Ro)
-	steinhart = log(steinhart);                  // ln(R/Ro)
-	steinhart /= BCOEFFICIENT;                   // 1/B * ln(R/Ro)
-	steinhart += 1.0 / (TEMPERATURENOMINAL + 273.15); // + (1/To)
-	steinhart = 1.0 / steinhart;                 // Invert
-	steinhart -= 273.15;                         // convert to C
-	
-	return steinhart;
-}
-int get_temp()
-{
-	int temp = 0;
-	temp = analog_get_average(TEMP_PIN,5);
-	temp = temp_scaling(temp);
-	return temp;
-}
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-//&&&&&&&&&&&&&&&&&& TIMER3 TIMOUT &&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-void setup_TMR3()
-{
-	TCCR3B |= (1<<CS32); // 256 prescaler, CTC mode
-
-}
-void reset_TMR3()
-{
-	TCNT3 = 0;
-}
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-//&&&&&&&&&&&&&&&&&&&&&& MISC &&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-void setup_gpios()
-{
-	LED_DDR |= (1<<LED_PIN); // set LED gpio as output
-	IN1_DDR |= (1<<IN1);
-	IN2_DDR |= (1<<IN2);
-	EN1_DDR |= (1<<EN1);
-	EN2_DDR |= (1<<EN2);
-	SERVO_PWM_DDR |= (1<<SERVO_PWM);
-	DDRC |= (1<<4);
-	
-}
-void flash_LED(uint8_t count, uint16_t ms)
-{
-	for (uint8_t i = 0; i < count; i++)
-	{
-		TOGGLE_LED;
-		delay_ms(ms);
-	}
-}
-void delay_ms(uint16_t ms)
-{
-	for (uint16_t i  = 0; i < ms; i++)
-	{
-		_delay_ms(1);
-	}
-}
-void estop()
-{
-	mtr_cmd = 0; // set motor command to 0 so the motor stops if communication is lost
-	srv_cmd = 0; // set servo command to 0 so the servo stops if communication is lost
-	stop_TMR1A_pwm();
-	stop_TMR1B_pwm();
-	motor_off();
-	
-}
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-//&&&&&&&&&&&&&&&&&&&&&&& GPS &&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-void parse_GPMRC()
-{
-	uint8_t temp_buf[2];
-	
-	temp_buf[0] = lat_buf[0];
-	temp_buf[1] = lat_buf[1];
-	lat_deg = atoi((const char *)temp_buf);
-	
-	temp_buf[0] = lat_buf[2];
-	temp_buf[1] = lat_buf[3];
-	lat_min = atoi((const char *)temp_buf);
-	
-	temp_buf[0] = lat_buf[5];
-	temp_buf[1] = lat_buf[6];
-	lat_sec = atoi((const char *)temp_buf);
-	
-	temp_buf[0] = lon_buf[0];
-	temp_buf[1] = lon_buf[1];
-	lon_deg = atoi((const char *)temp_buf);
-	
-	temp_buf[0] = lon_buf[2];
-	temp_buf[1] = lon_buf[3];
-	lon_min = atoi((const char *)temp_buf);
-	
-	temp_buf[0] = lon_buf[5];
-	temp_buf[1] = lon_buf[6];
-	lon_sec = atoi((const char *)temp_buf);
-	
-}
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-
-#ifdef DIRECT_JOYSTICK
-//&&&&&&&&&&&&&&&&&&& JOYSTICK &&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-int js_mtr_scaling(int value) // scales the result to commands from -1000 to 1000.
-{
-	value = value * CMD_SCALE - OFFSET; // scale to 0 -> 1000
-
-	if ((value < DEADBAND_MAX) && (value > DEADBAND_MIN)) // if within the dead band, send neutral command (0)
-	value = 0;
-	else if (value > DEADBAND_MAX)            // if joystick is higher than deadband
-	value = 2 * (value - NEUTRAL_CMD);    // compute the change from the neutral position multiply by 2 to scale to 1000
-	else if (value < DEADBAND_MIN)            // if joystick is lower than deadband
-	value = (-2) * (NEUTRAL_CMD - value); // compute the change from the neutral position and invert (multiply by 2 to scale to -1000
-	if (value > 1000)                         // do not send any value bigger than 1000 or smaller than -1000
-	value = 1000;
-
-	return value;
-} // end of joystick_scaling
-
-int js_srv_scaling(float value) // scales the result to commands from -1000 to 1000.
-{
-	value = value * CMD_SCALE - OFFSET; // scale to 0 -> 1000
-	if ((value < DEADBAND_MAX) && (value > DEADBAND_MIN)) // if within the dead band, send neutral command (0)
-	value = 0;
-	else if (value > DEADBAND_MAX)            // if joystick is higher than deadband
-	{
-		value = 2 * (value - NEUTRAL_CMD);    // compute the change from the neutral position multiply by 2 to scale to 1000
-		value = value  / 22.2; // scale to -45 45
-	}
-	else if (value < DEADBAND_MIN)            // if joystick is lower than deadband
-	{
-		value = (-2) * (NEUTRAL_CMD - value); // compute the change from the neutral position and invert (multiply by 2 to scale to -1000
-		value = value  / 22.2; // scale to -45 45
-	}
-	if (value > 1000)                         // do not send any value bigger than 1000
-	value = 1000;
-	if (value < -1000)                        // do not send any value smaller than -1000
-	value = -1000;
-
-	return value;
-} // end of joystick_scaling
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-#endif
-
-#ifdef GPS_ON
-//&&&&&&&&&&&&&&&&&&&&&&& USART1 ISR for GPS &&&&&&&&&&&&&&&&&&&&&&&&
-//&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
-// $GPRMC,hhmmss.ss,A,llll.ll,a,yyyyy.yy,a,x.x,x.x,ddmmyy,x.x,a*hh
-ISR(USART0_RX_vect)
-{
-	rcv_string[k_RX] = UDR0;
-	
-	if (rcv_string[k_RX] == '$')
-	HEADER = 1;
-	
-	if (HEADER)
-	{
-		if (rcv_string[k_RX] == ',')
-		{
-			if ( (rcv_string[3] == 'R') && (rcv_string[4] == 'M') && (rcv_string[5] == 'C'))
-			{
-				GPRMC_SENTENCE = 1;
-			}
-			else
-			k_RX = 0;
-			HEADER = 0;
-		}
-		else
-		k_RX++;
-	}
-	
-	if (GPRMC_SENTENCE)
-	{
-		if (rcv_string[k_RX] == '*')
-		{
-			int j = 0;
-			for (int i = 19; i < 26; i++)
-			{
-				lat_buf[j] = rcv_string[i];
-				j++;
-			}
-			lat_buf[j] = NL;
-			
-			
-			j = 0;
-			for (int i = 33; i <40; i++)
-			{
-				lon_buf[j] = rcv_string[i];
-				j++;
-			}
-			lon_buf[j] = NL;
-			
-			GPRMC_SENTENCE = 0;
-			k_RX = 0;
-			gps_string_ready = 1;
-		}
-		else
-		k_RX++;
-	}
-	
-}
-#endif
