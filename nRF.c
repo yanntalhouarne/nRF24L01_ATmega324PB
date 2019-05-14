@@ -62,7 +62,7 @@ void nRF_config()
 	 // enable dynamic payload and ACK with payload 
 	 nRF_configReg(FEATURE, (1<<EN_DPL) | (1<<EN_ACK_PAY));
 	
-	// enable dynamic payload on Pipe 0 
+	// enable dynamic payload on Pipe 1
 	nRF_configReg(DYNPD, (1<<DPL_P1));
    
     // 250 kbps, TX gain: 0dbm

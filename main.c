@@ -225,6 +225,7 @@ int main(void)
 		TOGGLE_LED; // main loop LED
 		ORANGE_LED_OFF; // unused 
 		
+		start_TMR3();
 		/* read battery voltage */
 		voltage = (int16_t)(100*get_voltage()); // in V
 		voltage = .3 * voltage + .7 * old_voltage;
@@ -249,11 +250,12 @@ int main(void)
 		buffer_analog[5] = (temperature>>8);
 		
 		/* write analog data to ACK payload */
-		nRF24_uploadACKpay(ACK_PAYLOAD_P0, buffer_analog, ACK_PAYLOAD_LENGTH);
+		nRF24_uploadACKpay(ACK_PAYLOAD_P1, buffer_analog, ACK_PAYLOAD_LENGTH);
+		
 				
 		/* wait for incoming data with a timeout of 1s */
-// 		timeout = 0;	
-// 		start_TMR3();
+		timeout = 0;	
+		start_TMR3();
 		while(!nRF_dataReady()) // RX timeout
 		{
 			if (timeout)
@@ -263,7 +265,7 @@ int main(void)
 				break;
 			}
 		} // end of RX timeout
-		//stop_TMR3();
+		stop_TMR3();
 		
 		/* enter Stanby_I mode to save current consumption */	
 		nRF_CLEAR_CE; 
@@ -483,7 +485,7 @@ void setup_TMR3()
 {
 	TCCR3A |= (1<<COM3A1) | (1<<COM3A0); // clear OCRA on compare
 	TCCR3B |= (1<<CS32) | (1<<CS30) | (1<<WGM32); // 1024 prescaler, CTC mode
-	OCR3A = 15620; // 1s period
+	OCR3A = 1562; // 500ms period
 	TIMSK3 |= (1<<OCIE3A); // set interrupt on OCA compare
 	
 	stop_TMR3();
@@ -590,6 +592,6 @@ void move_servo(float angle)
 
 ISR(TIMER3_COMPA_vect)
 {
-	timeout = 1;
+	timeout++;
 		
 }
